@@ -57,3 +57,10 @@ The **Notebook** is a document editor (for now )integrated with advanced AI tool
 - In-document fullscreen mode for detailed content exploration
 
 ---
+
+## Interface Low-Fi Sketches
+
+![Low-Fi Sketches_1](SelfLearn/Sketches/Sketch I.png)
+![Low-Fi Sketches_2](SelfLearn/Sketches/Sketch II.png)
+![Low-Fi Sketches_3](SelfLearn/Sketches/Sketch III.png)
+

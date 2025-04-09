@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Notebook</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <div class="breadcrumb">
+            <span class="file-title">Untitled Document</span>
+        </div>
+        <div class="toolbar-placeholder">
+            <div class="formatting-tools">
+                <button class="tool-button" title="Bold"><strong>B</strong></button>
+                <button class="tool-button" title="Italic"><em>I</em></button>
+                <button class="tool-button" title="Underline"><u>U</u></button>
+                <span class="tool-separator">|</span>
+                <button class="tool-button" title="Heading 1">H1</button>
+                <button class="tool-button" title="Heading 2">H2</button>
+                <button class="tool-button" title="Heading 3">H3</button>
+                <span class="tool-separator">|</span>
+                <button class="tool-button" title="Bullet List">•</button>
+                <button class="tool-button" title="Numbered List">1.</button>
+                <button class="tool-button" title="To-do List">☑</button>
+                <span class="tool-separator">|</span>
+                <button class="tool-button" title="Add Link"><span class="link-icon">🔗</span></button>
+                <button class="tool-button" title="Add Image"><span class="image-icon">🖼️</span></button>
+            </div>
+        </div>
+        <div class="ai-tools-dropdown">
+            <button id="ai-tools-btn">AI TOOLS</button>
+            <div class="dropdown-content" id="ai-dropdown">
+                <button id="doc-summary-btn">Doc Summary Tree</button>
+                <button id="ai-assistant-btn">AI Assistant</button>
+                <button id="summarize-btn">Summarize Text</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="title-area">
+            <h1 contenteditable="true" id="document-title">THIS IS THE TITLE</h1>
+        </div>
+        <div class="body-area">
+            <div contenteditable="true" id="document-body">
+                <h2>heading 2</h2>
+                <p>Lorem ipsum dolor sit amet consectetur. Nulla tempor mi dui egestas malesuada vehicula molestie mi vitae. Sodales et etiam lorem massa odio in quam rhoncus. Integer id ut imperdiet sed neque sed euismod blandit. Sed vitae potenti consequat eget lectus quam quisque scelerisque proin.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Doc Summary Window Template (Initially Hidden) -->
+    <div id="ai-doc-summary" class="ai-window" style="display: none;">
+        <div class="ai-window-header">
+            <span>PDF/DOC Uploader</span>
+            <div class="window-controls">
+                <button id="generate-btn">Generate</button>
+                <button class="close-btn">Close</button>
+            </div>
+        </div>
+        <div class="ai-window-body">
+            <div class="window-top-area">
+                <div class="file-upload-area">
+                    <div id="drop-zone">
+                        <p>Drag & drop files here or</p>
+                        <input type="file" id="file-upload" accept=".pdf,.doc,.docx" multiple>
+                        <label for="file-upload">Choose Files</label>
+                    </div>
+                    <div id="uploaded-files-list"></div>
+                </div>
+            </div>
+            <div class="window-bottom-area">
+                <div class="control-panel">
+                    <div class="control-item">
+                        <button id="model-select-btn">Drop Down Choose Model</button>
+                        <div class="dropdown-panel model-dropdown">
+                            <div class="model-option" data-model="openai">OpenAI GPT-4o</div>
+                            <div class="model-option" data-model="gemini">Google Gemini</div>
+                        </div>
+                    </div>
+                    <div class="control-item">
+                        <button id="manage-files-btn">Manage Files</button>
+                        <div class="dropdown-panel files-dropdown">
+                            <div class="files-list">No files uploaded</div>
+                        </div>
+                    </div>
+                    <div class="control-item">
+                        <button id="customize-structure-btn">Customize Structure</button>
+                        <div class="dropdown-panel structure-dropdown">
+                            <textarea id="structure-textarea" placeholder="Define custom structure (optional)...
+
+Example:
+- Main Topic
+  - Subtopic 1
+  - Subtopic 2
+  - Subtopic 3"></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

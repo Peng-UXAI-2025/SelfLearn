@@ -167,16 +167,26 @@ body {
     line-height: 1.6;
 }
 
-/* AI Window Styles - Inline instead of floating */
+/* AI Window Styles - Enhanced for inline document placement */
 .ai-window {
-    position: relative;
-    width: 100%;
+    width: 100%; /* Match parent width */
     background-color: white;
     border: 1px solid #ddd;
     border-radius: 5px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
     margin: 15px 0;
     z-index: 90;
+    transition: box-shadow 0.2s ease;
+}
+
+.ai-window.draggable {
+    cursor: move;
+}
+
+.ai-window.dragging {
+    opacity: 0.8;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    z-index: 100;
 }
 
 .ai-window-header {
@@ -187,6 +197,13 @@ body {
     background-color: #f5f5f5;
     border-bottom: 1px solid #ddd;
     border-radius: 5px 5px 0 0;
+}
+
+.window-drag-handle {
+    cursor: move;
+    flex: 1;
+    display: flex;
+    align-items: center;
 }
 
 .window-controls {
@@ -333,12 +350,13 @@ body {
     resize: none;
 }
 
-/* D3 Visualization Styles */
+/* D3 Visualization Styles - Enhanced for interactivity */
 .visualization-container {
     width: 100%;
     height: 400px;
     background-color: white;
     overflow: hidden;
+    position: relative;
 }
 
 .tree-svg {
@@ -346,20 +364,158 @@ body {
     height: 100%;
 }
 
+.node {
+    cursor: pointer;
+}
+
 .node circle {
     fill: #557ba1;
     stroke: #233749;
     stroke-width: 1.5px;
+    transition: r 0.2s ease, fill 0.2s ease;
+}
+
+.node:hover circle {
+    fill: #7ba1c7;
+    r: 7;
+}
+
+.node.selected circle {
+    fill: #233749;
+    r: 8;
+    stroke-width: 2px;
 }
 
 .node text {
     font: 12px sans-serif;
+    fill: #333;
+    pointer-events: none; /* Make text non-blocking for node clicks */
+}
+
+.node.selected text {
+    font-weight: bold;
+    fill: #000;
 }
 
 .link {
     fill: none;
     stroke: #ccc;
     stroke-width: 1.5px;
+}
+
+/* Node Details Panel */
+.node-details-panel {
+    position: fixed;
+    right: 20px;
+    top: 100px;
+    width: 350px;
+    max-width: 90vw;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none;
+    max-height: 80vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.node-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background-color: #233749;
+    color: white;
+    border-radius: 6px 6px 0 0;
+}
+
+.node-details-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.close-details-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 5px;
+}
+
+.node-details-content {
+    padding: 15px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 15px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn.active {
+    border-bottom-color: #233749;
+    color: #233749;
+    font-weight: bold;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+#node-source {
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 3px solid #233749;
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#related-concepts {
+    list-style-type: none;
+    padding: 0;
+}
+
+#related-concepts li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#related-concepts li:last-child {
+    border-bottom: none;
+}
+
+#related-concepts a {
+    color: #233749;
+    text-decoration: none;
+}
+
+#related-concepts a:hover {
+    text-decoration: underline;
+}
+
+#further-reading {
+    margin-top: 10px;
 }
 
 /* Uploaded Files List */
@@ -389,6 +545,20 @@ body {
     color: #c62828;
     cursor: pointer;
     font-weight: bold;
+}
+
+/* Drag placeholder for inline movement */
+.drag-placeholder {
+    width: 100%;
+    height: 5px;
+    background-color: #233749;
+    margin: 10px 0;
+    border-radius: 2px;
+    transition: height 0.2s ease;
+}
+
+.drag-placeholder.active {
+    height: 20px;
 }
 
 /* Utility Classes */
@@ -532,5 +702,11 @@ body {
     
     .ai-window {
         width: 100%;
+    }
+    
+    .node-details-panel {
+        width: 90%;
+        left: 5%;
+        right: 5%;
     }
 }

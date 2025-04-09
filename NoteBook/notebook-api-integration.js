@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     async function apiGenerateTreeInline(summaryWindow) {
         // Check if files were uploaded
-        if (uploadedFiles.length === 0) {
+        if (window.uploadedFiles.length === 0) {
             alert('Please upload at least one file to analyze.');
             return;
         }
@@ -63,7 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
             // Process documents using the API
             const result = await window.docAPI.processDocuments(
-                uploadedFiles, 
+                window.uploadedFiles, 
                 selectedModel, 
                 customStructure,
                 updateProgressIndicator.bind(null, loadingIndicator)
@@ -74,9 +74,15 @@ document.addEventListener('DOMContentLoaded', function() {
             vizContainer.className = 'ai-window';
             vizContainer.dataset.treeId = result.treeId; // Store the tree ID
             
+            // Make sure width matches the document body
+            const docBodyWidth = document.querySelector('.body-area').offsetWidth;
+            vizContainer.style.width = docBodyWidth + 'px';
+            
             vizContainer.innerHTML = `
                 <div class="ai-window-header">
-                    <span>Doc Summary Tree (${selectedModel === 'openai' ? 'OpenAI' : 'Gemini'})</span>
+                    <div class="window-drag-handle">
+                        <span>Doc Summary Tree (${selectedModel === 'openai' ? 'OpenAI' : 'Gemini'})</span>
+                    </div>
                     <div class="window-controls">
                         <button class="files-btn">Files</button>
                         <button class="more-options-btn">More</button>
@@ -103,7 +109,15 @@ document.addEventListener('DOMContentLoaded', function() {
             activeTreeElements.set(vizContainer, result.treeId);
             
             // Create D3 visualization
-            createD3TreeInline(vizContainer.querySelector('svg'), result.treeData);
+            window.notebookUI.createD3TreeInline(vizContainer.querySelector('svg'), result.treeData);
+            
+            // Add drag handle functionality
+            const dragHandle = vizContainer.querySelector('.window-drag-handle');
+            if (dragHandle) {
+                dragHandle.addEventListener('mousedown', function(e) {
+                    window.notebookUI.handleDragStart(e, vizContainer);
+                });
+            }
             
             // Add event listeners
             vizContainer.querySelector('.close-btn').addEventListener('click', function() {
@@ -113,7 +127,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             vizContainer.querySelector('.fullscreen-btn').addEventListener('click', function() {
-                toggleFullscreenInline(vizContainer, this);
+                window.notebookUI.toggleFullscreenInline(vizContainer, this);
             });
             
             vizContainer.querySelector('.files-btn').addEventListener('click', function() {
@@ -122,6 +136,19 @@ document.addEventListener('DOMContentLoaded', function() {
             
             vizContainer.querySelector('.more-options-btn').addEventListener('click', function() {
                 toggleMoreOptionsPanel(vizContainer);
+            });
+            
+            // Export buttons
+            vizContainer.querySelectorAll('.more-options-panel button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    if (this.classList.contains('export-json-btn')) {
+                        handleExportJSON(vizContainer);
+                    } else if (this.classList.contains('export-markdown-btn')) {
+                        handleExportMarkdown(vizContainer);
+                    } else if (this.classList.contains('export-svg-btn')) {
+                        handleExportSVG(vizContainer);
+                    }
+                });
             });
             
         } catch (error) {
@@ -234,7 +261,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (jsonData) {
             // Create and trigger download
-            downloadFile(jsonData, 'knowledge-tree.json', 'application/json');
+            window.notebookUI.downloadFile(jsonData, 'knowledge-tree.json', 'application/json');
         } else {
             alert('Failed to export tree as JSON');
         }
@@ -256,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         if (markdownData) {
             // Create and trigger download
-            downloadFile(markdownData, 'knowledge-tree.md', 'text/markdown');
+            window.notebookUI.downloadFile(markdownData, 'knowledge-tree.md', 'text/markdown');
         } else {
             alert('Failed to export tree as Markdown');
         }
@@ -302,26 +329,6 @@ document.addEventListener('DOMContentLoaded', function() {
         const svgString = serializer.serializeToString(clonedSvg);
         
         // Download
-        downloadFile(svgString, 'knowledge-tree.svg', 'image/svg+xml');
-    }
-    
-    /**
-     * Create and trigger a file download
-     * @param {String} content - File content
-     * @param {String} fileName - File name
-     * @param {String} contentType - MIME type
-     */
-    function downloadFile(content, fileName, contentType) {
-        const blob = new Blob([content], { type: contentType });
-        const url = URL.createObjectURL(blob);
-        
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName;
-        a.click();
-        
-        setTimeout(() => {
-            URL.revokeObjectURL(url);
-        }, 100);
+        window.notebookUI.downloadFile(svgString, 'knowledge-tree.svg', 'image/svg+xml');
     }
 });

@@ -55,7 +55,9 @@
     <!-- AI Doc Summary Window Template (Initially Hidden) -->
     <div id="ai-doc-summary" class="ai-window" style="display: none;">
         <div class="ai-window-header">
-            <span>PDF/DOC Uploader</span>
+            <div class="window-drag-handle">
+                <span>PDF/DOC Uploader</span>
+            </div>
             <div class="window-controls">
                 <button id="generate-btn">Generate</button>
                 <button class="close-btn">Close</button>
@@ -104,6 +106,37 @@ Example:
         </div>
     </div>
 
+    <!-- Node Details Panel (Initially Hidden) -->
+    <div id="node-details-panel" class="node-details-panel" style="display: none;">
+        <div class="node-details-header">
+            <h3 id="node-title">Node Title</h3>
+            <button class="close-details-btn">&times;</button>
+        </div>
+        <div class="node-details-content">
+            <div class="tabs">
+                <button class="tab-btn active" data-tab="summary">Summary</button>
+                <button class="tab-btn" data-tab="source">Source Text</button>
+                <button class="tab-btn" data-tab="explore">Explore</button>
+            </div>
+            <div class="tab-content">
+                <div id="summary-tab" class="tab-panel active">
+                    <p id="node-summary">Node summary will appear here.</p>
+                </div>
+                <div id="source-tab" class="tab-panel">
+                    <div id="node-source">Source text will appear here.</div>
+                </div>
+                <div id="explore-tab" class="tab-panel">
+                    <h4>Related Concepts</h4>
+                    <ul id="related-concepts"></ul>
+                    <h4>Further Reading</h4>
+                    <div id="further-reading"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="api-service.js"></script>
     <script src="script.js"></script>
+    <script src="notebook-api-integration.js"></script>
 </body>
 </html>

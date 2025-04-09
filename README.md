@@ -4,6 +4,8 @@
 
 ## Overview
 
+video demo: https://drive.google.com/file/d/1zjYSExyyuBTfKdciM_nlNJflKd9b5Vw7/view?usp=sharing 
+
 The **Notebook** is a document editor (for now )integrated with advanced AI tools designed to analyze and visualize document content. It combines rich text editing with sophisticated knowledge tree visualization.
 
 ---

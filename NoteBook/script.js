@@ -1,23 +1,17 @@
+/**
+ * Main script file for Web Notebook
+ * Handles document editing and UI interactions
+ */
+
 document.addEventListener('DOMContentLoaded', function() {
     // Global variables
-    window.uploadedFiles = []; // Expose for API integration
-    let selectedModel = 'openai';
+    window.uploadedFiles = []; // Store uploaded files
     let isDragging = false;
     let startY, currentDragTarget;
     let dragPlaceholder = null;
     let dropTarget = null;
-    let isFullscreen = false;
-    let treeData = null;
     let selectedNode = null; // Currently selected node
     
-    // Formatting tool states
-    let formattingState = {
-        bold: false,
-        italic: false,
-        underline: false,
-        heading: null
-    };
-
     // Initialize the document
     initializeDocument();
 
@@ -130,15 +124,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Apply formatting based on button clicked
                 if (title === 'Bold') {
                     document.execCommand('bold', false, null);
-                    formattingState.bold = !formattingState.bold;
                     this.classList.toggle('active');
                 } else if (title === 'Italic') {
                     document.execCommand('italic', false, null);
-                    formattingState.italic = !formattingState.italic;
                     this.classList.toggle('active');
                 } else if (title === 'Underline') {
                     document.execCommand('underline', false, null);
-                    formattingState.underline = !formattingState.underline;
                     this.classList.toggle('active');
                 } else if (title === 'Heading 1') {
                     applyHeadingFormat('h1');
@@ -337,7 +328,10 @@ document.addEventListener('DOMContentLoaded', function() {
         const generateBtn = windowElement.querySelector('#generate-btn');
         if (generateBtn) {
             generateBtn.addEventListener('click', function() {
-                generateTreeInline(windowElement);
+                // Use the API version from the integration module
+                if (typeof window.generateTreeInline === 'function') {
+                    window.generateTreeInline(windowElement);
+                }
             });
         }
         
@@ -354,7 +348,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const modelOptions = windowElement.querySelectorAll('.model-option');
         modelOptions.forEach(option => {
             option.addEventListener('click', function() {
-                selectedModel = this.getAttribute('data-model');
+                const selectedModel = this.getAttribute('data-model');
                 
                 // Update UI
                 windowElement.querySelectorAll('.model-option').forEach(opt => {
@@ -585,24 +579,43 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle uploaded files
     function handleFiles(files) {
+        // Clear previous files if needed
+        // window.uploadedFiles = []; // Uncomment to replace instead of append
+        
         for (let file of files) {
             // Check file type
             if (file.type === 'application/pdf' || 
                 file.type === 'application/msword' || 
-                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+                file.type === 'text/plain') {
                 
-                // Add to uploaded files array
-                uploadedFiles.push(file);
+                // Check if file already exists in the array
+                const fileExists = window.uploadedFiles.some(existingFile => 
+                    existingFile.name === file.name && existingFile.size === file.size
+                );
                 
-                // Display in UI
-                displayUploadedFile(file);
+                if (!fileExists) {
+                    // Add to uploaded files array
+                    window.uploadedFiles.push(file);
+                    
+                    // Display in UI
+                    displayUploadedFile(file);
+                }
             } else {
-                alert('Please upload PDF or Word documents only.');
+                alert('Please upload PDF, Word, or text documents only.');
             }
         }
         
         // Update files list in manage files dropdown
         updateFilesDropdown();
+        
+        // Enable generate button if files were uploaded
+        if (window.uploadedFiles.length > 0) {
+            const generateBtn = document.querySelector('#generate-btn');
+            if (generateBtn) {
+                generateBtn.classList.remove('disabled');
+            }
+        }
     }
 
     // Display uploaded file in the list
@@ -628,23 +641,33 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Remove file from uploaded files
     function removeFile(fileName) {
-        uploadedFiles = uploadedFiles.filter(file => file.name !== fileName);
+        window.uploadedFiles = window.uploadedFiles.filter(file => file.name !== fileName);
         
         // Update files dropdown
         updateFilesDropdown();
+        
+        // Disable generate button if no files left
+        if (window.uploadedFiles.length === 0) {
+            const generateBtn = document.querySelector('#generate-btn');
+            if (generateBtn) {
+                generateBtn.classList.add('disabled');
+            }
+        }
     }
 
     // Update files in the manage files dropdown
     function updateFilesDropdown() {
         const filesList = document.querySelector('.files-dropdown .files-list');
         
-        if (uploadedFiles.length === 0) {
+        if (!filesList) return;
+        
+        if (window.uploadedFiles.length === 0) {
             filesList.textContent = 'No files uploaded';
             return;
         }
         
         filesList.innerHTML = '';
-        uploadedFiles.forEach(file => {
+        window.uploadedFiles.forEach(file => {
             const fileItem = document.createElement('div');
             fileItem.className = 'dropdown-file-item';
             fileItem.innerHTML = `
@@ -668,393 +691,7 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Generate tree visualization inline
-    function generateTreeInline(summaryWindow) {
-        if (uploadedFiles.length === 0) {
-            alert('Please upload at least one file to analyze.');
-            return;
-        }
-        
-        // Show loading state
-        const loadingIndicator = document.createElement('div');
-        loadingIndicator.className = 'loading-indicator';
-        loadingIndicator.innerHTML = `
-            <div class="loading-spinner"></div>
-            <div class="loading-status">Processing documents...</div>
-            <div class="progress-container">
-                <div class="progress-bar" style="width: 30%"></div>
-            </div>
-        `;
-        summaryWindow.querySelector('.window-top-area').appendChild(loadingIndicator);
-        
-        // Simulate API call delay
-        setTimeout(() => {
-            // Mock tree data
-            treeData = getMockTreeData();
-            
-            // Create a visualization container to replace the summary window
-            const vizContainer = document.createElement('div');
-            vizContainer.className = 'ai-window';
-            
-            // Make sure width matches the document body
-            const docBodyWidth = document.querySelector('.body-area').offsetWidth;
-            vizContainer.style.width = docBodyWidth + 'px';
-            
-            vizContainer.innerHTML = `
-                <div class="ai-window-header">
-                    <div class="window-drag-handle">
-                        <span>Doc Summary Tree</span>
-                    </div>
-                    <div class="window-controls">
-                        <button class="files-btn">Files</button>
-                        <button class="more-options-btn">More</button>
-                        <button class="fullscreen-btn">Full Screen</button>
-                        <button class="close-btn">Close</button>
-                    </div>
-                </div>
-                <div class="ai-window-body">
-                    <div class="visualization-container">
-                        <svg width="100%" height="400" class="tree-svg"></svg>
-                    </div>
-                    <div class="more-options-panel" style="display: none;">
-                        <button class="export-json-btn">Export as JSON</button>
-                        <button class="export-markdown-btn">Export as Markdown</button>
-                        <button class="export-svg-btn">Export as SVG</button>
-                    </div>
-                </div>
-            `;
-            
-            // Replace the summary window with the visualization
-            summaryWindow.parentNode.replaceChild(vizContainer, summaryWindow);
-            
-            // Create D3 visualization
-            createD3TreeInline(vizContainer.querySelector('svg'), treeData);
-            
-            // Add drag handle functionality
-            const dragHandle = vizContainer.querySelector('.window-drag-handle');
-            if (dragHandle) {
-                dragHandle.addEventListener('mousedown', function(e) {
-                    handleDragStart(e, vizContainer);
-                });
-            }
-            
-            // Add event listeners
-            vizContainer.querySelector('.close-btn').addEventListener('click', function() {
-                vizContainer.remove();
-            });
-            
-            vizContainer.querySelector('.fullscreen-btn').addEventListener('click', function() {
-                toggleFullscreenInline(vizContainer, this);
-            });
-            
-            vizContainer.querySelector('.files-btn').addEventListener('click', function() {
-                showTreeFiles(uploadedFiles);
-            });
-            
-            vizContainer.querySelector('.more-options-btn').addEventListener('click', function() {
-                toggleMoreOptionsPanel(vizContainer);
-            });
-            
-            // Export buttons
-            const exportButtons = vizContainer.querySelectorAll('.more-options-panel button');
-            exportButtons.forEach(btn => {
-                btn.addEventListener('click', function() {
-                    if (this.classList.contains('export-json-btn')) {
-                        exportAsJSON(treeData);
-                    } else if (this.classList.contains('export-markdown-btn')) {
-                        exportAsMarkdown(treeData);
-                    } else if (this.classList.contains('export-svg-btn')) {
-                        exportAsSVG(vizContainer.querySelector('svg'));
-                    }
-                });
-            });
-            
-        }, 1500);
-    }
-    
-    // Create D3 tree visualization inline with enhanced interactivity
-    function createD3TreeInline(svgElement, data) {
-        // Use D3 to select the SVG element
-        const svg = d3.select(svgElement);
-        
-        // Clear any existing content
-        svg.selectAll("*").remove();
-        
-        // Set up dimensions
-        const width = svg.node().getBoundingClientRect().width;
-        const height = svg.node().getBoundingClientRect().height;
-        
-        // Create a tree layout
-        const treeLayout = d3.tree().size([height - 50, width - 100]);
-        
-        // Create hierarchy from data
-        const root = d3.hierarchy(data);
-        
-        // Calculate position of each node
-        treeLayout(root);
-        
-        // Add container g element
-        const g = svg.append("g")
-            .attr("transform", `translate(50, 25)`);
-        
-        // Create links
-        g.selectAll(".link")
-            .data(root.links())
-            .enter()
-            .append("path")
-            .attr("class", "link")
-            .attr("d", d3.linkHorizontal()
-                .x(d => d.y)   // Swap x and y for horizontal layout
-                .y(d => d.x));
-        
-        // Create nodes
-        const node = g.selectAll(".node")
-            .data(root.descendants())
-            .enter()
-            .append("g")
-            .attr("class", "node")
-            .attr("transform", d => `translate(${d.y},${d.x})`)
-            .on("click", function(event, d) {
-                // Handle node click - show details
-                showNodeDetails(d, event);
-                
-                // Update selected state
-                if (selectedNode) {
-                    d3.select(selectedNode).classed('selected', false);
-                }
-                selectedNode = this;
-                d3.select(this).classed('selected', true);
-            });
-        
-        // Add circles to nodes
-        node.append("circle")
-            .attr("r", 5);
-        
-        // Add text labels
-        node.append("text")
-            .attr("dy", ".35em")
-            .attr("x", d => d.children ? -10 : 10)
-            .attr("text-anchor", d => d.children ? "end" : "start")
-            .text(d => d.data.name);
-        
-        // Enable zoom and pan
-        const zoom = d3.zoom()
-            .scaleExtent([0.5, 3])
-            .on("zoom", (event) => {
-                g.attr("transform", event.transform);
-            });
-        
-        svg.call(zoom);
-    }
-    
-    // Show node details when clicked
-    function showNodeDetails(node, event) {
-        const detailsPanel = document.getElementById('node-details-panel');
-        
-        // Update panel content
-        document.getElementById('node-title').textContent = node.data.name;
-        
-        // Create mock data for each tab based on the node data
-        // In a real implementation, this would come from the API
-        
-        // Summary tab
-        const summary = node.data.description || `This is a summary of the ${node.data.name} concept. It would include key information extracted from the document.`;
-        document.getElementById('node-summary').textContent = summary;
-        
-        // Source tab - show the source text from the document
-        const sourceContent = `Original text from document relating to "${node.data.name}":
-        
-This section would contain the actual extracted text from the document that this node is based on. In a real implementation, this would include the specific paragraphs or sections that were used to generate this node in the knowledge tree.`;
-        document.getElementById('node-source').innerHTML = sourceContent;
-        
-        // Explore tab - show related concepts
-        const relatedConcepts = document.getElementById('related-concepts');
-        relatedConcepts.innerHTML = '';
-        
-        // Generate 3-5 related concepts based on siblings and children
-        const siblings = node.parent ? node.parent.children : [];
-        const relatedNodes = [...siblings, ...(node.children || [])].filter(n => n !== node).slice(0, 4);
-        
-        relatedNodes.forEach(relatedNode => {
-            const li = document.createElement('li');
-            li.innerHTML = `<a href="#" class="related-concept" data-node-id="${relatedNode.data.id || Math.random().toString(36).substring(2, 10)}">${relatedNode.data.name}</a>`;
-            relatedConcepts.appendChild(li);
-        });
-        
-        // Add "Further Reading" suggestions
-        document.getElementById('further-reading').innerHTML = `
-            <p>To learn more about ${node.data.name}, consider:</p>
-            <ul>
-                <li>Exploring related sections in the document</li>
-                <li>Reviewing ${siblings.length > 0 ? siblings[0].data.name : 'parent concepts'}</li>
-                <li>Examining ${node.children && node.children.length > 0 ? 'subconcepts' : 'related examples'}</li>
-            </ul>
-        `;
-        
-        // Show the first tab by default
-        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-        document.querySelector('.tab-btn[data-tab="summary"]').classList.add('active');
-        document.getElementById('summary-tab').classList.add('active');
-        
-        // Position the panel beside the visualization
-        const rect = event.target.getBoundingClientRect();
-        const panelWidth = 350;
-        
-        // Calculate ideal position (next to the node)
-        let left = rect.right + 20;
-        let top = rect.top - 50;
-        
-        // Check if panel would go off screen to the right
-        if (left + panelWidth > window.innerWidth) {
-            left = rect.left - panelWidth - 20;
-        }
-        
-        // Check if panel would go off screen at the top
-        if (top < 70) { // Account for header
-            top = 70;
-        }
-        
-        // Set panel position
-        detailsPanel.style.left = `${left}px`;
-        detailsPanel.style.top = `${top}px`;
-        
-        // Show the panel
-        detailsPanel.style.display = 'flex';
-        
-        // Add event listeners for related concepts
-        detailsPanel.querySelectorAll('.related-concept').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                // In a real implementation, this would find and select the related node
-                alert(`Navigate to related concept: ${this.textContent}`);
-            });
-        });
-    }
-    
-    // Toggle fullscreen for inline visualization
-    function toggleFullscreenInline(container, button) {
-        const isAlreadyFullscreen = container.classList.contains('is-fullscreen');
-        
-        if (!isAlreadyFullscreen) {
-            // Save the current position
-            container.dataset.originalParent = container.parentNode;
-            container.dataset.originalNextSibling = container.nextSibling ? container.nextSibling.id : 'none';
-            
-            // Move to body and make fullscreen
-            document.body.appendChild(container);
-            container.classList.add('is-fullscreen');
-            button.textContent = 'Exit Fullscreen';
-            
-            // Update the SVG height for better viewing
-            const svg = container.querySelector('svg');
-            svg.setAttribute('height', 'calc(100vh - 80px)');
-        } else {
-            // Remove fullscreen
-            container.classList.remove('is-fullscreen');
-            button.textContent = 'Full Screen';
-            
-            // Reset SVG height
-            const svg = container.querySelector('svg');
-            svg.setAttribute('height', '400');
-            
-            // Return to original position if possible
-            const originalParent = document.getElementById('document-body');
-            if (originalParent) {
-                originalParent.appendChild(container);
-            }
-        }
-        
-        // Recreate the visualization to fit the new size
-        createD3TreeInline(container.querySelector('svg'), treeData);
-    }
-    
-    // Toggle more options panel
-    function toggleMoreOptionsPanel(container) {
-        const optionsPanel = container.querySelector('.more-options-panel');
-        optionsPanel.style.display = optionsPanel.style.display === 'none' ? 'block' : 'none';
-    }
-    
-    // Show files used for a tree
-    function showTreeFiles(files) {
-        // This would show a panel with the files used to generate the tree
-        let filesList = files.map(file => file.name).join(', ');
-        alert(`Files used: ${filesList}`);
-    }
-    
-    // Export as JSON
-    function exportAsJSON(data) {
-        const jsonString = JSON.stringify(data, null, 2);
-        downloadFile(jsonString, 'knowledge-tree.json', 'application/json');
-    }
-    
-    // Export as Markdown
-    function exportAsMarkdown(data) {
-        let markdown = `# ${data.name}\n\n`;
-        
-        // Recursive function to process nodes
-        function processNode(node, level) {
-            if (!node) return '';
-            
-            let result = '';
-            
-            if (node.children && node.children.length > 0) {
-                node.children.forEach(child => {
-                    // Add heading with appropriate level
-                    result += `${'#'.repeat(level + 1)} ${child.name}\n\n`;
-                    
-                    // Add description if available
-                    if (child.description) {
-                        result += `${child.description}\n\n`;
-                    }
-                    
-                    // Process children recursively
-                    result += processNode(child, level + 1);
-                });
-            }
-            
-            return result;
-        }
-        
-        markdown += processNode(data, 1);
-        
-        // Download the markdown
-        downloadFile(markdown, 'knowledge-tree.md', 'text/markdown');
-    }
-    
-    // Export as SVG
-    function exportAsSVG(svgElement) {
-        // Clone the SVG element to avoid modifying the original
-        const clonedSvg = svgElement.cloneNode(true);
-        
-        // Add inline stylesheet
-        const style = document.createElement('style');
-        style.textContent = `
-            .node circle {
-                fill: #557ba1;
-                stroke: #233749;
-                stroke-width: 1.5px;
-            }
-            .node text {
-                font: 12px sans-serif;
-            }
-            .link {
-                fill: none;
-                stroke: #ccc;
-                stroke-width: 1.5px;
-            }
-        `;
-        clonedSvg.insertBefore(style, clonedSvg.firstChild);
-        
-        // Convert to string
-        const serializer = new XMLSerializer();
-        const svgString = serializer.serializeToString(clonedSvg);
-        
-        // Download
-        downloadFile(svgString, 'knowledge-tree.svg', 'image/svg+xml');
-    }
-    
-    // Helper function to download files
+    // Helper function to download files (for exports)
     function downloadFile(content, fileName, contentType) {
         const blob = new Blob([content], { type: contentType });
         const url = URL.createObjectURL(blob);
@@ -1069,106 +706,15 @@ This section would contain the actual extracted text from the document that this
         }, 100);
     }
     
-    // Get mock tree data for demonstration
-    function getMockTreeData() {
-        return {
-            "name": "Document Structure",
-            "children": [
-                {
-                    "name": "Introduction",
-                    "description": "Provides background information and sets context for the document.",
-                    "children": [
-                        {
-                            "name": "Background",
-                            "description": "Historical context and previous work related to the topic.",
-                            "children": []
-                        },
-                        {
-                            "name": "Research Questions",
-                            "description": "The main questions or hypotheses being explored in the document.",
-                            "children": []
-                        }
-                    ]
-                },
-                {
-                    "name": "Methodology",
-                    "description": "Details of the approach, techniques, and procedures used.",
-                    "children": [
-                        {
-                            "name": "Data Collection",
-                            "description": "Methods used to gather information for analysis.",
-                            "children": [
-                                {
-                                    "name": "Surveys",
-                                    "description": "Structured questionnaires used to collect responses.",
-                                    "children": []
-                                },
-                                {
-                                    "name": "Interviews",
-                                    "description": "In-depth conversations with subjects to gather qualitative data.",
-                                    "children": []
-                                }
-                            ]
-                        },
-                        {
-                            "name": "Analysis Techniques",
-                            "description": "Statistical and analytical methods applied to the collected data.",
-                            "children": []
-                        }
-                    ]
-                },
-                {
-                    "name": "Results",
-                    "description": "Findings and outcomes derived from the research.",
-                    "children": [
-                        {
-                            "name": "Key Findings",
-                            "description": "Most significant discoveries and insights from the analysis.",
-                            "children": []
-                        },
-                        {
-                            "name": "Statistical Analysis",
-                            "description": "Numerical evaluation of data patterns and significance.",
-                            "children": []
-                        }
-                    ]
-                },
-                {
-                    "name": "Discussion",
-                    "description": "Interpretation of results and their broader context.",
-                    "children": [
-                        {
-                            "name": "Implications",
-                            "description": "Consequences and applications of the findings.",
-                            "children": []
-                        },
-                        {
-                            "name": "Limitations",
-                            "description": "Constraints and boundaries of the research methodology.",
-                            "children": []
-                        }
-                    ]
-                },
-                {
-                    "name": "Conclusion",
-                    "description": "Summary of findings and final thoughts on the research.",
-                    "children": []
-                }
-            ]
-        };
-    }
-    
-    // Make functions available globally
+    // Expose utility functions to the global scope for other modules to use
     window.notebookUI = {
-        createD3TreeInline,
-        toggleFullscreenInline,
-        showNodeDetails,
         handleDragStart,
         downloadFile,
-        toggleMoreOptionsPanel,
-        showTreeFiles,
-        exportAsJSON,
-        exportAsMarkdown,
-        exportAsSVG
+        toggleMoreOptionsPanel: function(container) {
+            const optionsPanel = container.querySelector('.more-options-panel');
+            if (optionsPanel) {
+                optionsPanel.style.display = optionsPanel.style.display === 'none' ? 'block' : 'none';
+            }
+        }
     };
 });

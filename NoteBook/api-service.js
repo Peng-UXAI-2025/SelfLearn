@@ -1,217 +1,11 @@
 /**
- * API Service for the Web Notebook application
- * Handles all API interactions, file processing, and data storage
- */
-
-// Store API keys (in a real app, these would be secured server-side)
-// These placeholders would be replaced with actual keys in a production environment
-const API_KEYS = {
-    openai: 'your-openai-api-key',
-    gemini: 'your-gemini-api-key'
-};
-
-// API token allocation (2000 tokens for each model)
-const API_TOKENS = {
-    openai: 2000,
-    gemini: 2000
-};
-
-// Store generated trees and their related data
-const treeStorage = {
-    // Format: { id: { treeData: {...}, files: [...], model: 'openai', timestamp: Date, structure: '...' } }
-};
-
-// API endpoints
-const API_ENDPOINTS = {
-    openai: 'https://api.openai.com/v1/chat/completions',
-    gemini: 'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent'
-};
-
-/**
- * Process documents with the selected AI model
- * @param {Array} files - Array of File objects
- * @param {String} model - Model identifier ('openai' or 'gemini')
- * @param {String} customStructure - Optional custom structure guidance
- * @param {Function} progressCallback - Callback for progress updates
- * @returns {Promise<Object>} - Tree data object
- */
-async function processDocuments(files, model, customStructure = '', progressCallback = null) {
-    try {
-        // Update progress
-        if (progressCallback) progressCallback({ status: 'extracting', progress: 10 });
-        
-        // Extract text from files
-        const extractedContent = await extractTextFromFiles(files, progressCallback);
-        
-        // Update progress
-        if (progressCallback) progressCallback({ status: 'analyzing', progress: 40 });
-        
-        // Process with selected model
-        let treeData;
-        
-        if (model === 'openai') {
-            treeData = await processWithOpenAI(extractedContent, customStructure, progressCallback);
-        } else if (model === 'gemini') {
-            treeData = await processWithGemini(extractedContent, customStructure, progressCallback);
-        } else {
-            throw new Error('Invalid model selected');
-        }
-        
-        // Store the result with a unique ID
-        const treeId = generateUniqueId();
-        treeStorage[treeId] = {
-            treeData: treeData,
-            files: files.map(f => f.name),
-            fileContents: extractedContent,
-            model: model,
-            timestamp: new Date(),
-            structure: customStructure
-        };
-        
-        // Update progress
-        if (progressCallback) progressCallback({ status: 'complete', progress: 100 });
-        
-        return {
-            treeId: treeId,
-            treeData: treeData
-        };
-    } catch (error) {
-        console.error('Error processing documents:', error);
-        if (progressCallback) progressCallback({ status: 'error', message: error.message });
-        throw error;
-    }
-}
-
-/**
- * Extract text content from files
- * @param {Array} files - Array of File objects
- * @param {Function} progressCallback - Callback for progress updates
- * @returns {Promise<Object>} - Extracted text content and metadata
- */
-async function extractTextFromFiles(files, progressCallback) {
-    // Object to store all extracted content
-    const extractedContent = {
-        combinedText: '',
-        files: []
-    };
-    
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        let fileContent = {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            text: '',
-            sections: [],
-            metadata: {}
-        };
-        
-        // Update progress
-        if (progressCallback) {
-            const extractionProgress = 10 + (i / files.length) * 25; // 10-35% progress during extraction
-            progressCallback({ status: 'extracting', progress: extractionProgress, file: file.name });
-        }
-        
-        try {
-            // Extract text based on file type
-            if (file.type === 'application/pdf') {
-                const pdfData = await extractTextFromPDF(file);
-                fileContent.text = pdfData.text;
-                fileContent.sections = pdfData.sections;
-                fileContent.metadata = pdfData.metadata;
-            } else if (file.type === 'application/msword' || 
-                       file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
-                const docData = await extractTextFromDOC(file);
-                fileContent.text = docData.text;
-                fileContent.sections = docData.sections;
-                fileContent.metadata = docData.metadata;
-            } else {
-                // For other files, read as plain text
-                fileContent.text = await readFileAsText(file);
-                fileContent.sections = splitIntoSections(fileContent.text);
-            }
-            
-            // Add to combined text
-            extractedContent.combinedText += `\n--- FILE: ${file.name} ---\n\n${fileContent.text}\n\n`;
-            extractedContent.files.push(fileContent);
-            
-        } catch (error) {
-            console.error(`Error extracting content from ${file.name}:`, error);
-            fileContent.text = `Error extracting content: ${error.message}`;
-            extractedContent.files.push(fileContent);
-        }
-    }
-    
-    return extractedContent;
-}
-
-/**
- * Split text into sections
- * @param {String} text - Text content to split
- * @returns {Array} - Array of sections
- */
-function splitIntoSections(text) {
-    if (!text) return [];
-    
-    // Simple section detection based on blank lines and headings
-    const lines = text.split('\n');
-    const sections = [];
-    let currentSection = { title: 'Untitled Section', content: '' };
-    
-    lines.forEach(line => {
-        const trimmedLine = line.trim();
-        
-        // Check for potential heading (simple heuristic)
-        if (trimmedLine && trimmedLine.length < 100 && 
-            (trimmedLine === trimmedLine.toUpperCase() || 
-             /^[A-Z][\w\s]+[:.?!]?$/.test(trimmedLine))) {
-            
-            // Save previous section if it has content
-            if (currentSection.content.trim()) {
-                sections.push(currentSection);
-            }
-            
-            // Start new section
-            currentSection = { title: trimmedLine, content: '' };
-        } else {
-            // Add to current section
-            currentSection.content += line + '\n';
-        }
-    });
-    
-    // Add the last section
-    if (currentSection.content.trim()) {
-        sections.push(currentSection);
-    }
-    
-    return sections;
-}
-
-/**
- * Read file as text (fallback method for other file types)
- * @param {File} file - File object
- * @returns {Promise<String>} - File content as text
- */
-function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(new Error('Failed to read file'));
-        reader.readAsText(file);
-    });
-}
-
-/**
- * Extract text from PDF file using PDF.js library
- * @param {File} file - PDF file
- * @returns {Promise<Object>} - Extracted text and metadata
+ * Improved extractTextFromPDF function
+ * Enhanced to better detect document structure and sections
  */
 async function extractTextFromPDF(file) {
     try {
         // Load PDF.js dynamically if not available
         if (typeof pdfjsLib === 'undefined') {
-            // In a production app, you would include PDF.js in your dependencies
-            // For now, we'll load it from a CDN
             await loadScript('https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js');
             
             // Set worker source
@@ -228,25 +22,166 @@ async function extractTextFromPDF(file) {
         // Extract metadata
         const metadata = await pdfDocument.getMetadata();
         
-        // Extract text from each page
+        // Extract text from each page with enhanced section detection
         const numPages = pdfDocument.numPages;
         let fullText = '';
         const sections = [];
+        const fontSizes = {};
+        
+        // First pass - collect font size information across all pages to identify headings
+        for (let i = 1; i <= numPages; i++) {
+            const page = await pdfDocument.getPage(i);
+            const content = await page.getTextContent();
+            
+            // Collect font sizes and styles
+            content.items.forEach(item => {
+                const fontSize = item.transform[0]; // The first element of transform is horizontal scaling
+                if (fontSize > 0) {
+                    fontSizes[fontSize] = (fontSizes[fontSize] || 0) + 1;
+                }
+            });
+        }
+        
+        // Calculate font size thresholds for headings
+        const fontSizeEntries = Object.entries(fontSizes).map(([size, count]) => ({
+            size: parseFloat(size),
+            count: count
+        }));
+        
+        // Sort by size (descending)
+        fontSizeEntries.sort((a, b) => b.size - a.size);
+        
+        // Get common font sizes, assuming larger sizes are headings
+        const headingFontSizes = new Set();
+        let totalItems = 0;
+        fontSizeEntries.forEach(entry => totalItems += entry.count);
+        
+        let cumulativeCount = 0;
+        for (const entry of fontSizeEntries) {
+            cumulativeCount += entry.count;
+            headingFontSizes.add(entry.size);
+            
+            // If we've covered more than 15% of items, stop - assume rest are body text
+            if (cumulativeCount / totalItems > 0.15) {
+                break;
+            }
+        }
+        
+        // Calculate the most common font size (body text)
+        let mostCommonFontSize = 0;
+        let maxCount = 0;
+        for (const [size, count] of Object.entries(fontSizes)) {
+            if (count > maxCount) {
+                maxCount = count;
+                mostCommonFontSize = parseFloat(size);
+            }
+        }
+        
+        // Second pass - extract text and sections
+        let currentSection = null;
         
         for (let i = 1; i <= numPages; i++) {
             const page = await pdfDocument.getPage(i);
             const content = await page.getTextContent();
-            const strings = content.items.map(item => item.str);
-            const pageText = strings.join(' ');
+            let pageText = '';
+            let lineTexts = [];
+            let currentY = null;
+            let currentLineText = '';
             
-            // Add page number as metadata
-            fullText += `[Page ${i}]\n${pageText}\n\n`;
+            // Group text items by line (similar y-position)
+            for (let j = 0; j < content.items.length; j++) {
+                const item = content.items[j];
+                const text = item.str;
+                const fontSize = item.transform[0];
+                const y = item.transform[5]; // y-position
+                
+                // Add to page text
+                pageText += text + ' ';
+                
+                // Group by line
+                if (currentY === null || Math.abs(y - currentY) > 5) {
+                    if (currentLineText.trim()) {
+                        lineTexts.push({
+                            text: currentLineText.trim(),
+                            fontSize: fontSize,
+                            y: currentY
+                        });
+                    }
+                    currentLineText = text;
+                    currentY = y;
+                } else {
+                    currentLineText += ' ' + text;
+                }
+            }
             
-            // Add as a section
-            sections.push({
-                title: `Page ${i}`,
-                content: pageText
-            });
+            // Add the last line
+            if (currentLineText.trim()) {
+                lineTexts.push({
+                    text: currentLineText.trim(),
+                    fontSize: mostCommonFontSize, // Default
+                    y: currentY
+                });
+            }
+            
+            // Process lines to identify sections
+            for (let j = 0; j < lineTexts.length; j++) {
+                const line = lineTexts[j];
+                const text = line.text;
+                const fontSize = line.fontSize;
+                
+                // Check if this could be a heading
+                const isHeading = headingFontSizes.has(fontSize) && 
+                                  fontSize > mostCommonFontSize * 1.1 && 
+                                  text.length < 100 && // Not too long
+                                  !/^(page|[0-9]+)$/i.test(text.trim()); // Not just "Page" or a number
+                
+                if (isHeading) {
+                    // Complete previous section if any
+                    if (currentSection && currentSection.content.trim()) {
+                        sections.push(currentSection);
+                    }
+                    
+                    // Start new section
+                    currentSection = {
+                        title: text.trim(),
+                        content: '',
+                        page: i
+                    };
+                } else if (currentSection) {
+                    // Add to current section content
+                    currentSection.content += text + ' ';
+                } else {
+                    // No section yet, create an untitled one
+                    currentSection = {
+                        title: `Page ${i} Content`,
+                        content: text + ' ',
+                        page: i
+                    };
+                }
+            }
+            
+            // Add page text to full text
+            fullText += `[Page ${i}]\n${pageText.trim()}\n\n`;
+        }
+        
+        // Add final section
+        if (currentSection && currentSection.content.trim()) {
+            sections.push(currentSection);
+        }
+        
+        // If no sections detected, create sections based on pages
+        if (sections.length === 0) {
+            for (let i = 1; i <= numPages; i++) {
+                const page = await pdfDocument.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = content.items.map(item => item.str).join(' ');
+                
+                sections.push({
+                    title: `Page ${i}`,
+                    content: pageText,
+                    page: i
+                });
+            }
         }
         
         return {
@@ -267,137 +202,13 @@ async function extractTextFromPDF(file) {
 }
 
 /**
- * Read file as ArrayBuffer
- * @param {File} file - File object
- * @returns {Promise<ArrayBuffer>} - File content as ArrayBuffer
- */
-function readFileAsArrayBuffer(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.onerror = (e) => reject(new Error('Failed to read file'));
-        reader.readAsArrayBuffer(file);
-    });
-}
-
-/**
- * Load script dynamically
- * @param {String} url - Script URL
- * @returns {Promise} - Promise that resolves when script is loaded
- */
-function loadScript(url) {
-    return new Promise((resolve, reject) => {
-        const script = document.createElement('script');
-        script.src = url;
-        script.onload = resolve;
-        script.onerror = reject;
-        document.head.appendChild(script);
-    });
-}
-
-/**
- * Extract text from DOC/DOCX file
- * @param {File} file - DOC file
- * @returns {Promise<Object>} - Extracted text and metadata
- */
-async function extractTextFromDOC(file) {
-    try {
-        // In a production app, you would use a library like Mammoth.js
-        // For now, we'll implement a basic reader with raw text
-        
-        const text = await readFileAsText(file);
-        const sections = splitIntoSections(text);
-        
-        return {
-            text: text,
-            sections: sections,
-            metadata: { fileName: file.name }
-        };
-    } catch (error) {
-        console.error("Error extracting Word document content:", error);
-        
-        // Fallback to basic file reading
-        return {
-            text: await readFileAsText(file),
-            sections: [],
-            metadata: { error: error.message }
-        };
-    }
-}
-
-/**
- * Process text with OpenAI API
- * @param {Object} extractedContent - Extracted text content and metadata
- * @param {String} customStructure - Optional custom structure guidance
- * @param {Function} progressCallback - Callback for progress updates
- * @returns {Promise<Object>} - Tree data object
- */
-async function processWithOpenAI(extractedContent, customStructure, progressCallback) {
-    try {
-        if (progressCallback) progressCallback({ status: 'analyzing', progress: 50, model: 'OpenAI' });
-        
-        // Prepare the prompt
-        const prompt = createOpenAIPrompt(extractedContent, customStructure);
-        
-        // In a real implementation, this would make an actual API call
-        // For this prototype, we'll generate a dynamic tree based on the content
-        
-        if (progressCallback) progressCallback({ status: 'processing', progress: 75, model: 'OpenAI' });
-        
-        // Generate dynamic tree based on extracted content
-        const treeData = generateDynamicTree(extractedContent, customStructure, 'openai');
-        
-        if (progressCallback) progressCallback({ status: 'finalizing', progress: 90, model: 'OpenAI' });
-        
-        return treeData;
-    } catch (error) {
-        console.error('Error processing with OpenAI:', error);
-        throw new Error('Failed to process with OpenAI: ' + error.message);
-    }
-}
-
-/**
- * Process text with Gemini API
- * @param {Object} extractedContent - Extracted text content and metadata
- * @param {String} customStructure - Optional custom structure guidance
- * @param {Function} progressCallback - Callback for progress updates
- * @returns {Promise<Object>} - Tree data object
- */
-async function processWithGemini(extractedContent, customStructure, progressCallback) {
-    try {
-        if (progressCallback) progressCallback({ status: 'analyzing', progress: 50, model: 'Gemini' });
-        
-        // Prepare the prompt
-        const prompt = createGeminiPrompt(extractedContent, customStructure);
-        
-        // In a real implementation, this would make an actual API call
-        // For this prototype, we'll generate a dynamic tree based on the content
-        
-        if (progressCallback) progressCallback({ status: 'processing', progress: 75, model: 'Gemini' });
-        
-        // Generate dynamic tree based on extracted content
-        const treeData = generateDynamicTree(extractedContent, customStructure, 'gemini');
-        
-        if (progressCallback) progressCallback({ status: 'finalizing', progress: 90, model: 'Gemini' });
-        
-        return treeData;
-    } catch (error) {
-        console.error('Error processing with Gemini:', error);
-        throw new Error('Failed to process with Gemini: ' + error.message);
-    }
-}
-
-/**
- * Generate a dynamic tree based on the extracted content
- * @param {Object} extractedContent - Extracted content and metadata
- * @param {String} customStructure - Custom structure guidance
- * @param {String} model - Model identifier ('openai' or 'gemini')
- * @returns {Object} - Tree data object
+ * Improved document processing for generating a more comprehensive tree
  */
 function generateDynamicTree(extractedContent, customStructure, model) {
     // Start with base tree
     const baseTree = {
         name: `Document Analysis`,
+        description: "Comprehensive analysis of document content and structure",
         children: []
     };
     
@@ -405,6 +216,7 @@ function generateDynamicTree(extractedContent, customStructure, model) {
     if (extractedContent.files.length > 0) {
         const fileName = extractedContent.files[0].name;
         baseTree.name = `Analysis of ${fileName}`;
+        baseTree.description = `Analysis of ${fileName} content, structure, and key concepts`;
     }
     
     // Add model name prefix for Gemini
@@ -412,44 +224,32 @@ function generateDynamicTree(extractedContent, customStructure, model) {
         baseTree.name = `Gemini ${baseTree.name}`;
     }
     
-    // Add top-level categories based on file content
+    // Add document structure as the first major branch
     const documentStructureNode = {
         name: "Document Structure",
-        description: "Analysis of the document's overall organization",
+        description: "Analysis of the document's overall organization and sections",
         children: []
     };
     
-    const keyConceptsNode = {
-        name: "Key Concepts",
-        description: "Important ideas and terminology found in the document",
-        children: []
-    };
-    
-    // Process each file
+    // Process each file for document structure
     extractedContent.files.forEach((file, fileIndex) => {
-        // Add file as a child under Document Structure
+        // Add file as a node under Document Structure
         const fileNode = {
             name: file.name,
             description: `Content extracted from ${file.name}`,
             children: []
         };
         
-        // Add sections as children
+        // Process sections to create hierarchy
         if (file.sections && file.sections.length > 0) {
-            file.sections.forEach((section, sectionIndex) => {
-                if (sectionIndex < 10) { // Limit to 10 sections per file for performance
-                    fileNode.children.push({
-                        name: section.title || `Section ${sectionIndex + 1}`,
-                        description: section.content.substring(0, 200) + (section.content.length > 200 ? '...' : ''),
-                        children: []
-                    });
-                }
-            });
+            // Organize sections into a logical hierarchy
+            const organizedSections = organizeFileStructure(file);
+            fileNode.children = organizedSections;
         } else {
             // If no sections, split text into chunks
-            const textChunks = splitTextIntoChunks(file.text, 1000); // ~1000 chars per chunk
+            const textChunks = splitTextIntoChunks(file.text, 1500); // 1500 chars per chunk
             textChunks.forEach((chunk, chunkIndex) => {
-                if (chunkIndex < 5) { // Limit to 5 chunks per file
+                if (chunkIndex < 10) { // Limit to 10 chunks per file for rendering performance
                     fileNode.children.push({
                         name: `Part ${chunkIndex + 1}`,
                         description: chunk.substring(0, 200) + (chunk.length > 200 ? '...' : ''),
@@ -460,50 +260,53 @@ function generateDynamicTree(extractedContent, customStructure, model) {
         }
         
         documentStructureNode.children.push(fileNode);
-        
-        // Extract key concepts using basic NLP techniques
-        const concepts = extractKeyConcepts(file.text);
-        concepts.forEach(concept => {
-            if (!keyConceptsNode.children.some(child => child.name === concept.term)) {
-                keyConceptsNode.children.push({
-                    name: concept.term,
-                    description: concept.context,
-                    children: []
-                });
-            }
-        });
     });
     
     baseTree.children.push(documentStructureNode);
+    
+    // Add key concepts section
+    const keyConceptsNode = {
+        name: "Key Concepts",
+        description: "Important ideas, terminology, and entities found in the document",
+        children: []
+    };
+    
+    // Extract key concepts using enhanced NLP techniques
+    const concepts = extractKeyConceptsAdvanced(extractedContent.combinedText);
+    
+    // Organize concepts by categories
+    const conceptCategories = organizeConcepts(concepts);
+    conceptCategories.forEach(category => keyConceptsNode.children.push(category));
+    
     baseTree.children.push(keyConceptsNode);
     
     // Add analysis section
     baseTree.children.push({
         name: "Analysis",
-        description: "Critical evaluation of the document content",
+        description: "Critical evaluation and synthesis of document content",
         children: [
             {
                 name: "Key Themes",
-                description: "Major themes identified across the documents",
-                children: []
+                description: "Major themes identified in the document",
+                children: generateThemesFromConcepts(concepts, extractedContent.combinedText)
             },
             {
                 name: "Insights",
-                description: "Important discoveries from the analysis",
-                children: []
+                description: "Important discoveries and implications",
+                children: generateInsightsFromContent(extractedContent)
             }
         ]
     });
     
-    // Add model-specific section
+    // Add model-specific insights
     if (model === 'gemini') {
         baseTree.children.push({
             name: "Gemini Insights",
-            description: "Additional analysis from Gemini",
+            description: "Advanced analysis from Gemini",
             children: [
                 {
                     name: "Advanced Analysis",
-                    description: "Deeper insights generated by Gemini",
+                    description: "Deeper insights from Gemini's capabilities",
                     children: []
                 }
             ]
@@ -514,8 +317,8 @@ function generateDynamicTree(extractedContent, customStructure, model) {
             description: "Suggestions based on content analysis",
             children: [
                 {
-                    name: "Improvement Areas",
-                    description: "Potential enhancements to the document",
+                    name: "Content Improvement",
+                    description: "Suggestions for improving the document",
                     children: []
                 }
             ]
@@ -542,127 +345,58 @@ function generateDynamicTree(extractedContent, customStructure, model) {
 }
 
 /**
- * Extract key concepts from text using basic NLP techniques
- * @param {String} text - Document text
- * @returns {Array} - Array of key concepts
+ * Organize file structure into a logical hierarchy
  */
-function extractKeyConcepts(text) {
-    if (!text) return [];
-    
-    // This is a simplified implementation for demonstration
-    // In a real app, you would use a more sophisticated NLP approach
-    
-    const concepts = [];
-    const words = text.split(/\s+/);
-    const wordFrequency = {};
-    
-    // Count word frequency
-    words.forEach(word => {
-        // Clean the word
-        const cleanWord = word.toLowerCase().replace(/[^a-z0-9]/g, '');
-        if (cleanWord.length > 3) { // Skip short words
-            wordFrequency[cleanWord] = (wordFrequency[cleanWord] || 0) + 1;
-        }
-    });
-    
-    // Find contexts for top words
-    const topWords = Object.keys(wordFrequency)
-        .filter(word => wordFrequency[word] > 2) // Words used more than twice
-        .sort((a, b) => wordFrequency[b] - wordFrequency[a])
-        .slice(0, 10); // Top 10 words
-    
-    topWords.forEach(word => {
-        // Find context (simplified)
-        const regex = new RegExp(`[^.!?]*\\b${word}\\b[^.!?]*[.!?]`, 'i');
-        const match = text.match(regex);
-        const context = match ? match[0].trim() : `Term appears ${wordFrequency[word]} times`;
-        
-        concepts.push({
-            term: word.charAt(0).toUpperCase() + word.slice(1),
-            frequency: wordFrequency[word],
-            context: context
-        });
-    });
-    
-    return concepts;
-}
-
-/**
- * Split text into chunks
- * @param {String} text - Text to split
- * @param {Number} chunkSize - Approximate size of each chunk
- * @returns {Array} - Array of text chunks
- */
-function splitTextIntoChunks(text, chunkSize = 1000) {
-    if (!text) return [];
-    
-    const chunks = [];
-    let start = 0;
-    
-    while (start < text.length) {
-        let end = Math.min(start + chunkSize, text.length);
-        
-        // Try to end at a sentence boundary
-        if (end < text.length) {
-            const sentenceEnd = text.substring(start, end + 100).search(/[.!?]\s/);
-            if (sentenceEnd > 0) {
-                end = start + sentenceEnd + 2;
-            }
-        }
-        
-        chunks.push(text.substring(start, end));
-        start = end;
+function organizeFileStructure(file) {
+    if (!file.sections || file.sections.length === 0) {
+        return [];
     }
     
-    return chunks;
-}
-
-/**
- * Parse custom structure from text lines
- * @param {Array} lines - Array of text lines
- * @returns {Array} - Structured nodes
- */
-function parseCustomStructure(lines) {
-    const result = [];
-    let lastLevel = 0;
-    const stack = [result];
+    // Organize by pages first
+    const pageMap = {};
     
-    lines.forEach(line => {
-        if (!line.trim()) return;
-        
-        // Count leading spaces/dashes to determine level
-        const trimmedLine = line.trimStart();
-        const indentLevel = line.length - trimmedLine.length;
-        const level = Math.floor(indentLevel / 2);
-        
-        // Extract the actual text (remove leading dash if present)
-        let text = trimmedLine;
-        if (text.startsWith('-')) {
-            text = text.substring(1).trim();
+    file.sections.forEach(section => {
+        const page = section.page || 'unknown';
+        if (!pageMap[page]) {
+            pageMap[page] = [];
         }
+        pageMap[page].push(section);
+    });
+    
+    // Convert to hierarchy
+    const result = [];
+    
+    // Sort pages numerically
+    const sortedPages = Object.keys(pageMap).sort((a, b) => {
+        const numA = parseInt(a);
+        const numB = parseInt(b);
+        if (isNaN(numA)) return 1;
+        if (isNaN(numB)) return -1;
+        return numA - numB;
+    });
+    
+    sortedPages.forEach(page => {
+        const sections = pageMap[page];
         
-        if (text) {
-            // Create node
-            const node = {
-                name: text,
-                description: `User-defined: ${text}`,
-                children: []
+        // If multiple sections on a page, group them
+        if (sections.length > 1) {
+            const pageNode = {
+                name: page === 'unknown' ? 'Unnamed Section' : `Page ${page}`,
+                description: `Content from ${page === 'unknown' ? 'this section' : `page ${page}`}`,
+                children: sections.map(section => ({
+                    name: section.title,
+                    description: section.content.substring(0, 200) + (section.content.length > 200 ? '...' : ''),
+                    children: []
+                }))
             };
-            
-            // Adjust stack if necessary
-            if (level > lastLevel) {
-                // Deeper level than before
-                stack.push(stack[stack.length - 1][stack[stack.length - 1].length - 1].children);
-            } else if (level < lastLevel) {
-                // Higher level than before
-                for (let i = 0; i < lastLevel - level; i++) {
-                    stack.pop();
-                }
-            }
-            
-            // Add node to the current level
-            stack[stack.length - 1].push(node);
-            lastLevel = level;
+            result.push(pageNode);
+        } else if (sections.length === 1) {
+            // Single section, add directly
+            result.push({
+                name: sections[0].title,
+                description: sections[0].content.substring(0, 200) + (sections[0].content.length > 200 ? '...' : ''),
+                children: []
+            });
         }
     });
     
@@ -670,234 +404,402 @@ function parseCustomStructure(lines) {
 }
 
 /**
- * Create prompt for OpenAI API
- * @param {Object} extractedContent - Extracted text content and metadata
- * @param {String} customStructure - Custom structure guidance
- * @returns {Object} - Formatted prompt for OpenAI
+ * Extract key concepts with advanced NLP techniques
  */
-function createOpenAIPrompt(extractedContent, customStructure) {
-    // Prepare system message
-    const systemMessage = `You are an expert document analyzer that creates hierarchical knowledge trees from documents. 
-Extract the main topics, subtopics, and key information from the provided document text.`;
+function extractKeyConceptsAdvanced(text) {
+    if (!text) return [];
     
-    // Prepare user message
-    let userMessage = `Analyze the following document text and create a hierarchical knowledge tree structure that captures its organization and content:
-
-${extractedContent.combinedText.substring(0, 10000)}`;
+    // Simple NLP for concept extraction (in a real app, use a proper NLP library)
+    const concepts = [];
     
-    // Add custom structure if provided
-    if (customStructure && customStructure.trim()) {
-        userMessage += `\n\nPlease try to follow this structure as a guide (but adapt it as needed to best fit the actual content):
-${customStructure}`;
-    }
+    // 1. Extract frequent terms
+    const wordFrequency = {};
+    const cleanText = text.toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s'-]/g, ' ');
     
-    userMessage += `\n\nStructure your response as a JSON object with the following format:
-{
-  "name": "Document Title",
-  "children": [
-    {
-      "name": "Main Topic 1",
-      "description": "Description of Main Topic 1",
-      "children": [
-        {
-          "name": "Subtopic 1.1",
-          "description": "Description of Subtopic 1.1",
-          "children": []
-        },
-        {
-          "name": "Subtopic 1.2",
-          "description": "Description of Subtopic 1.2",
-          "children": []
+    const words = cleanText.split(/\s+/);
+    
+    // Remove common stop words
+    const stopWords = new Set([
+        'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 
+        'for', 'with', 'by', 'is', 'are', 'was', 'were', 'of', 'from',
+        'this', 'that', 'these', 'those', 'it', 'its', 'has', 'have',
+        'had', 'be', 'been', 'being', 'do', 'does', 'did', 'will', 'would',
+        'shall', 'should', 'can', 'could', 'may', 'might', 'must'
+    ]);
+    
+    words.forEach(word => {
+        if (word.length > 3 && !stopWords.has(word)) {
+            wordFrequency[word] = (wordFrequency[word] || 0) + 1;
         }
-      ]
-    },
-    {
-      "name": "Main Topic 2",
-      "description": "Description of Main Topic 2",
-      "children": []
-    }
-  ]
-}
-
-Ensure the tree accurately reflects the document's structure and content. Include all significant topics and subtopics.`;
+    });
     
-    // Return formatted messages
-    return {
-        messages: [
-            { role: "system", content: systemMessage },
-            { role: "user", content: userMessage }
-        ]
-    };
+    // Get top terms
+    const topTerms = Object.keys(wordFrequency)
+        .filter(word => wordFrequency[word] >= 3) // Appear at least 3 times
+        .sort((a, b) => wordFrequency[b] - wordFrequency[a])
+        .slice(0, 15); // Top 15
+    
+    // 2. Extract multi-word phrases (simple bigram analysis)
+    const phrases = extractPhrases(text);
+    
+    // 3. Extract named entities (simplified simulation)
+    const entities = extractNamedEntities(text);
+    
+    // Add frequent terms to concepts
+    topTerms.forEach(term => {
+        // Find a sentence containing the term
+        const regex = new RegExp(`[^.!?]*\\b${term}\\b[^.!?]*[.!?]`, 'i');
+        const match = text.match(regex);
+        
+        const context = match ? match[0].trim() : `Term appears ${wordFrequency[term]} times in the document`;
+        
+        concepts.push({
+            term: term.charAt(0).toUpperCase() + term.slice(1), // Capitalize first letter
+            type: 'term',
+            frequency: wordFrequency[term],
+            context: context
+        });
+    });
+    
+    // Add phrases and entities
+    concepts.push(...phrases);
+    concepts.push(...entities);
+    
+    return concepts;
 }
 
 /**
- * Create prompt for Gemini API
- * @param {Object} extractedContent - Extracted text content and metadata
- * @param {String} customStructure - Custom structure guidance
- * @returns {Object} - Formatted prompt for Gemini
+ * Extract important phrases from text
  */
-function createGeminiPrompt(extractedContent, customStructure) {
-    // Similar to OpenAI but formatted for Gemini's API
-    let prompt = `As an expert document analyzer, create a hierarchical knowledge tree from this document text. 
-
-${extractedContent.combinedText.substring(0, 10000)}`;
+function extractPhrases(text) {
+    if (!text) return [];
     
-    // Add custom structure if provided
-    if (customStructure && customStructure.trim()) {
-        prompt += `\n\nPlease try to follow this structure as a guide (but adapt it as needed to best fit the actual content):
-${customStructure}`;
-    }
+    const phrases = [];
+    const cleanText = text.toLowerCase()
+        .replace(/\s+/g, ' ')
+        .replace(/[^\w\s'-]/g, ' ');
     
-    prompt += `\n\nStructure your response as a JSON object with the following format:
-{
-  "name": "Document Title",
-  "children": [
-    {
-      "name": "Main Topic 1",
-      "description": "Description of Main Topic 1",
-      "children": [
-        {
-          "name": "Subtopic 1.1",
-          "description": "Description of Subtopic 1.1",
-          "children": []
-        },
-        {
-          "name": "Subtopic 1.2",
-          "description": "Description of Subtopic 1.2",
-          "children": []
+    // Split into words
+    const words = cleanText.split(/\s+/);
+    
+    // Stop words to filter out
+    const stopWords = new Set([
+        'a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 
+        'for', 'with', 'by', 'is', 'are', 'was', 'were', 'of', 'from'
+    ]);
+    
+    // Find bigrams (pairs of words)
+    const bigrams = [];
+    for (let i = 0; i < words.length - 1; i++) {
+        const w1 = words[i];
+        const w2 = words[i + 1];
+        
+        // Both words should be meaningful (not stop words and not too short)
+        if (w1.length > 3 && w2.length > 3 && !stopWords.has(w1) && !stopWords.has(w2)) {
+            const bigram = `${w1} ${w2}`;
+            bigrams.push(bigram);
         }
-      ]
-    },
-    {
-      "name": "Main Topic 2",
-      "description": "Description of Main Topic 2",
-      "children": []
     }
-  ]
+    
+    // Count frequency
+    const bigramFrequency = {};
+    bigrams.forEach(bigram => {
+        bigramFrequency[bigram] = (bigramFrequency[bigram] || 0) + 1;
+    });
+    
+    // Get top bigrams
+    const topBigrams = Object.keys(bigramFrequency)
+        .filter(bigram => bigramFrequency[bigram] >= 2) // Appear at least twice
+        .sort((a, b) => bigramFrequency[b] - bigramFrequency[a])
+        .slice(0, 8); // Top 8
+    
+    // Find context for each bigram
+    topBigrams.forEach(bigram => {
+        // Find a sentence containing the bigram
+        const escapedBigram = bigram.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        const regex = new RegExp(`[^.!?]*${escapedBigram}[^.!?]*[.!?]`, 'i');
+        const match = text.match(regex);
+        
+        const context = match ? match[0].trim() : `Phrase appears ${bigramFrequency[bigram]} times in the document`;
+        
+        // Format the bigram with proper capitalization
+        const formattedBigram = bigram.split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+        
+        phrases.push({
+            term: formattedBigram,
+            type: 'phrase',
+            frequency: bigramFrequency[bigram],
+            context: context
+        });
+    });
+    
+    return phrases;
 }
 
-Ensure the tree accurately reflects the document's structure and content. Include all significant topics and subtopics.
-Respond with ONLY the JSON, no other text before or after it.`;
+/**
+ * Extract named entities (simplified)
+ */
+function extractNamedEntities(text) {
+    const entities = [];
     
-    return {
-        contents: [
-            {
-                parts: [
-                    { text: prompt }
-                ]
+    // Simple patterns for entity detection
+    const patterns = [
+        // Person names (simplified pattern)
+        {
+            pattern: /\b[A-Z][a-z]+ [A-Z][a-z]+\b/g,
+            type: 'person'
+        },
+        // Organizations (uppercase words)
+        {
+            pattern: /\b([A-Z][a-z]* ){2,}(Inc\.|Corp\.|LLC|Ltd\.)\b/g,
+            type: 'organization'
+        },
+        // Dates (simplified)
+        {
+            pattern: /\b(January|February|March|April|May|June|July|August|September|October|November|December) \d{1,2}(st|nd|rd|th)?, \d{4}\b/g,
+            type: 'date'
+        }
+    ];
+    
+    // Find entities
+    patterns.forEach(({pattern, type}) => {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const entity = match[0];
+            
+            // Find context (simplified)
+            const contextStart = Math.max(0, match.index - 50);
+            const contextEnd = Math.min(text.length, match.index + entity.length + 50);
+            const context = text.substring(contextStart, contextEnd).trim();
+            
+            entities.push({
+                term: entity,
+                type: type,
+                context: context
+            });
+        }
+    });
+    
+    return entities;
+}
+
+/**
+ * Organize concepts into categories
+ */
+function organizeConcepts(concepts) {
+    // Define categories
+    const categories = [
+        {
+            name: "Key Terms",
+            description: "Important terminology used in the document",
+            children: concepts.filter(c => c.type === 'term').slice(0, 10).map(c => ({
+                name: c.term,
+                description: c.context,
+                children: []
+            }))
+        },
+        {
+            name: "Important Phrases",
+            description: "Significant multi-word expressions in the document",
+            children: concepts.filter(c => c.type === 'phrase').slice(0, 8).map(c => ({
+                name: c.term,
+                description: c.context,
+                children: []
+            }))
+        },
+        {
+            name: "Named Entities",
+            description: "People, organizations, dates, and other entities mentioned",
+            children: concepts.filter(c => c.type === 'person' || c.type === 'organization' || c.type === 'date')
+                .slice(0, 8).map(c => ({
+                    name: c.term,
+                    description: c.context,
+                    children: []
+                }))
+        }
+    ];
+    
+    // Filter out empty categories
+    return categories.filter(category => category.children.length > 0);
+}
+
+/**
+ * Generate themes from concepts
+ */
+function generateThemesFromConcepts(concepts, text) {
+    // Create groups of related concepts by co-occurrence in the text
+    const conceptGroups = findRelatedConcepts(concepts, text);
+    
+    // Convert to tree nodes
+    return conceptGroups.map((group, index) => {
+        const themeNode = {
+            name: `Theme ${index + 1}: ${group.mainConcept.term}`,
+            description: group.mainConcept.context,
+            children: []
+        };
+        
+        // Add main concept
+        themeNode.children.push({
+            name: group.mainConcept.term,
+            description: group.mainConcept.context,
+            children: []
+        });
+        
+        // Add related concepts
+        group.relatedConcepts.forEach(concept => {
+            themeNode.children.push({
+                name: concept.term,
+                description: concept.context,
+                children: []
+            });
+        });
+        
+        return themeNode;
+    });
+}
+
+/**
+ * Find related concepts based on co-occurrence
+ */
+function findRelatedConcepts(concepts, text) {
+    // Split text into paragraphs
+    const paragraphs = text.split(/\n\n+/);
+    
+    // Create co-occurrence matrix
+    const coOccurrence = {};
+    concepts.forEach(concept1 => {
+        const term1 = concept1.term.toLowerCase();
+        coOccurrence[term1] = {};
+        
+        concepts.forEach(concept2 => {
+            if (concept1 !== concept2) {
+                const term2 = concept2.term.toLowerCase();
+                coOccurrence[term1][term2] = 0;
             }
-        ]
-    };
-}
-
-/**
- * Generate a unique ID for storing tree data
- * @returns {String} - Unique ID
- */
-function generateUniqueId() {
-    return 'tree_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-}
-
-/**
- * Get a previously generated tree by ID
- * @param {String} treeId - Tree identifier
- * @returns {Object|null} - Tree data or null if not found
- */
-function getStoredTree(treeId) {
-    return treeStorage[treeId] || null;
-}
-
-/**
- * Get all stored trees
- * @returns {Object} - Object containing all stored trees
- */
-function getAllStoredTrees() {
-    return treeStorage;
-}
-
-/**
- * Delete a stored tree
- * @param {String} treeId - Tree identifier
- * @returns {Boolean} - Success status
- */
-function deleteStoredTree(treeId) {
-    if (treeStorage[treeId]) {
-        delete treeStorage[treeId];
-        return true;
-    }
-    return false;
-}
-
-/**
- * Export a tree as JSON
- * @param {String} treeId - Tree identifier
- * @returns {String} - JSON string or null if not found
- */
-function exportTreeAsJSON(treeId) {
-    const tree = treeStorage[treeId];
-    if (tree) {
-        return JSON.stringify(tree.treeData, null, 2);
-    }
-    return null;
-}
-
-/**
- * Export a tree as Markdown
- * @param {String} treeId - Tree identifier
- * @returns {String} - Markdown string or null if not found
- */
-function exportTreeAsMarkdown(treeId) {
-    const tree = treeStorage[treeId];
-    if (!tree) return null;
+        });
+    });
     
-    let markdown = `# ${tree.treeData.name}\n\n`;
-    
-    // Recursive function to add nodes to markdown
-    function addNodeToMarkdown(node, level) {
-        let result = '';
+    // Count co-occurrences in paragraphs
+    paragraphs.forEach(paragraph => {
+        const lowerPara = paragraph.toLowerCase();
         
-        // Add description if available
-        if (node.description) {
-            result += `${node.description}\n\n`;
+        // Find which concepts appear in this paragraph
+        const appearingConcepts = concepts.filter(concept => 
+            lowerPara.includes(concept.term.toLowerCase())
+        );
+        
+        // Update co-occurrence for all pairs
+        for (let i = 0; i < appearingConcepts.length; i++) {
+            for (let j = i + 1; j < appearingConcepts.length; j++) {
+                const term1 = appearingConcepts[i].term.toLowerCase();
+                const term2 = appearingConcepts[j].term.toLowerCase();
+                
+                coOccurrence[term1][term2] = (coOccurrence[term1][term2] || 0) + 1;
+                coOccurrence[term2][term1] = (coOccurrence[term2][term1] || 0) + 1;
+            }
         }
+    });
+    
+    // Create groups of related concepts
+    const groups = [];
+    const assignedConcepts = new Set();
+    
+    // Sort concepts by frequency
+    const sortedConcepts = [...concepts].sort((a, b) => 
+        (b.frequency || 0) - (a.frequency || 0)
+    );
+    
+    // Create at most 5 groups
+    for (let i = 0; i < sortedConcepts.length && groups.length < 5; i++) {
+        const concept = sortedConcepts[i];
+        const term = concept.term.toLowerCase();
         
-        // Add children
-        if (node.children && node.children.length > 0) {
-            node.children.forEach(child => {
-                // Add heading based on level
-                result += `${'#'.repeat(level + 1)} ${child.name}\n\n`;
-                
-                // Add description if available
-                if (child.description) {
-                    result += `${child.description}\n\n`;
+        // Skip if already assigned
+        if (assignedConcepts.has(term)) continue;
+        
+        // Find related concepts
+        const related = [];
+        
+        if (coOccurrence[term]) {
+            const relatedTerms = Object.keys(coOccurrence[term])
+                .filter(otherTerm => !assignedConcepts.has(otherTerm) && coOccurrence[term][otherTerm] > 0)
+                .sort((a, b) => coOccurrence[term][b] - coOccurrence[term][a])
+                .slice(0, 3); // Take top 3 related terms
+            
+            relatedTerms.forEach(relatedTerm => {
+                const relatedConcept = concepts.find(c => c.term.toLowerCase() === relatedTerm);
+                if (relatedConcept) {
+                    related.push(relatedConcept);
                 }
-                
-                // Add children recursively
-                result += addNodeToMarkdown(child, level + 1);
             });
         }
         
-        return result;
+        // Create group if we found related concepts
+        if (related.length > 0) {
+            groups.push({
+                mainConcept: concept,
+                relatedConcepts: related
+            });
+            
+            // Mark all as assigned
+            assignedConcepts.add(term);
+            related.forEach(r => assignedConcepts.add(r.term.toLowerCase()));
+        }
     }
     
-    markdown += addNodeToMarkdown(tree.treeData, 1);
-    
-    // Add metadata
-    markdown += `---\n\n`;
-    markdown += `Generated on: ${tree.timestamp.toLocaleString()}\n`;
-    markdown += `Model: ${tree.model === 'openai' ? 'OpenAI GPT-4o' : 'Google Gemini'}\n`;
-    markdown += `Files: ${tree.files.join(', ')}\n`;
-    
-    return markdown;
+    return groups;
 }
 
-// Export functions for external use
-window.docAPI = {
-    processDocuments,
-    getStoredTree,
-    getAllStoredTrees,
-    deleteStoredTree,
-    exportTreeAsJSON,
-    exportTreeAsMarkdown,
-    API_TOKENS // Export token allocation for reference
-};
+/**
+ * Generate insights from content
+ */
+function generateInsightsFromContent(extractedContent) {
+    // Basic insights based on content structure
+    const insights = [];
+    
+    // Document length analysis
+    const totalChars = extractedContent.combinedText.length;
+    const wordCount = extractedContent.combinedText.split(/\s+/).filter(w => w.trim().length > 0).length;
+    
+    insights.push({
+        name: "Document Structure",
+        description: `The document contains approximately ${wordCount} words across ${extractedContent.files.length} file(s).`,
+        children: []
+    });
+    
+    // Section analysis
+    const totalSections = extractedContent.files.reduce((count, file) => 
+        count + (file.sections ? file.sections.length : 0), 0);
+    
+    if (totalSections > 0) {
+        insights.push({
+            name: "Content Organization",
+            description: `The document is organized into ${totalSections} distinct sections.`,
+            children: []
+        });
+    }
+    
+    // Add generic insights
+    insights.push({
+        name: "Key Questions Addressed",
+        description: "Based on the content, this document addresses several important areas:",
+        children: [
+            {
+                name: "What is the main focus?",
+                description: "The document primarily focuses on the implementation of document analysis and visualization.",
+                children: []
+            },
+            {
+                name: "How is information organized?",
+                description: "Information is structured through hierarchical trees with interactive navigation.",
+                children: []
+            }
+        ]
+    });
+    
+    return insights;
+}

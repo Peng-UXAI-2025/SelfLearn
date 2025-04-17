@@ -14,11 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
      * Initialize the integration between UI and API
      */
     function initializeAPIIntegration() {
-        // Store a reference to the original generateTreeInline function
-        window.originalGenerateTreeInline = window.generateTreeInline;
-        
-        // Override with our API version
-        window.apiGenerateTreeInline = apiGenerateTreeInline;
+        // Override the original tree generation function with our API version
+        window.generateTreeInline = apiGenerateTreeInline;
         
         // Add PDF.js script if not already loaded
         if (typeof pdfjsLib === 'undefined') {
@@ -86,8 +83,8 @@ document.addEventListener('DOMContentLoaded', function() {
         summaryWindow.querySelector('.window-top-area').appendChild(loadingIndicator);
         
         try {
-            // Process documents using the API
-            const result = await window.docAPI.processDocuments(
+            // Process documents using the PDF processor module
+            const result = await window.pdfProcessor.processDocuments(
                 window.uploadedFiles, 
                 selectedModel, 
                 customStructure,
@@ -134,13 +131,13 @@ document.addEventListener('DOMContentLoaded', function() {
             activeTreeElements.set(vizContainer, result.treeId);
             
             // Create D3 visualization
-            window.notebookUI.createD3TreeInline(vizContainer.querySelector('svg'), result.treeData);
+            window.pdfProcessor.createD3TreeVisualization(vizContainer.querySelector('svg'), result.treeData);
             
             // Add drag handle functionality
             const dragHandle = vizContainer.querySelector('.window-drag-handle');
             if (dragHandle) {
                 dragHandle.addEventListener('mousedown', function(e) {
-                    window.notebookUI.handleDragStart(e, vizContainer);
+                    handleDragStart(e, vizContainer);
                 });
             }
             
@@ -152,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             
             vizContainer.querySelector('.fullscreen-btn').addEventListener('click', function() {
-                window.notebookUI.toggleFullscreenInline(vizContainer, this);
+                toggleFullscreenMode(vizContainer, this);
             });
             
             vizContainer.querySelector('.files-btn').addEventListener('click', function() {
@@ -163,21 +160,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 toggleMoreOptionsPanel(vizContainer);
             });
             
-            // Export buttons
-            vizContainer.querySelectorAll('.more-options-panel button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    if (this.classList.contains('export-json-btn')) {
-                        handleExportJSON(vizContainer);
-                    } else if (this.classList.contains('export-markdown-btn')) {
-                        handleExportMarkdown(vizContainer);
-                    } else if (this.classList.contains('export-svg-btn')) {
-                        handleExportSVG(vizContainer);
-                    }
-                });
-            });
+            // Setup export buttons
+            setupExportButtons(vizContainer);
             
-            // Enhanced node details
-            setupEnhancedNodeDetails(vizContainer, result.treeId);
+            // Setup node details functionality
+            setupNodeDetails(vizContainer, result.treeId);
             
         } catch (error) {
             // Check for specific error types
@@ -195,427 +182,255 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     /**
-     * Setup enhanced node details
+     * Handle drag start for draggable windows
+     * @param {Event} e - Mouse event
+     * @param {HTMLElement} element - Element to drag
+     */
+    function handleDragStart(e, element) {
+        // Only handle left mouse button
+        if (e.button !== 0) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Let the script.js handle dragging
+        if (window.notebookUI && window.notebookUI.handleDragStart) {
+            window.notebookUI.handleDragStart(e, element);
+        }
+    }
+    
+    /**
+     * Setup node details functionality
      * @param {HTMLElement} vizContainer - Visualization container
      * @param {String} treeId - Tree identifier
      */
-    function setupEnhancedNodeDetails(vizContainer, treeId) {
-        // Override the node click handler
-        const svg = vizContainer.querySelector('svg');
+    function setupNodeDetails(vizContainer, treeId) {
+        // Get tree data for reference
+        const treeData = window.pdfProcessor.getStoredTree(treeId);
         
-        // Add a custom event listener for node clicks
-        svg.addEventListener('click', function(event) {
-            const nodeElement = event.target.closest('.node');
-            if (!nodeElement) return;
+        // Set up click handler on svg
+        const svg = vizContainer.querySelector('svg');
+        svg._treeId = treeId; // Store tree ID on the svg element
+        
+        // Ensure the node details panel close button works
+        document.querySelector('.close-details-btn')?.addEventListener('click', function() {
+            document.getElementById('node-details-panel').style.display = 'none';
             
-            // Get the node data from D3
-            const nodeData = d3.select(nodeElement).datum();
-            
-            // Show enhanced node details
-            enhanceNodeDetailsDisplay(nodeData, event, treeId);
+            // Deselect any selected node
+            d3.select(svg).selectAll(".node").classed("selected", false);
         });
     }
     
     /**
-     * Show enhanced node details with file-specific content
-     * @param {Object} node - D3 hierarchy node
-     * @param {Event} event - Click event 
+     * Toggle fullscreen mode
+     * @param {HTMLElement} container - Container element
+     * @param {HTMLElement} button - Button element
+     */
+    function toggleFullscreenMode(container, button) {
+        const isAlreadyFullscreen = container.classList.contains('is-fullscreen');
+        const treeId = container.dataset.treeId;
+        const treeData = treeId ? window.pdfProcessor.getStoredTree(treeId)?.treeData : null;
+        
+        if (!isAlreadyFullscreen) {
+            // Save the current position
+            container.dataset.originalParent = container.parentNode.id || '';
+            container.dataset.originalNextSibling = container.nextSibling ? container.nextSibling.id || '' : 'none';
+            
+            // Move to body and make fullscreen
+            document.body.appendChild(container);
+            container.classList.add('is-fullscreen');
+            button.textContent = 'Exit Fullscreen';
+            
+            // Update the SVG height for better viewing
+            const svg = container.querySelector('svg');
+            svg.style.height = 'calc(100vh - 80px)';
+            
+            // Recreate the visualization with more space
+            if (treeData) {
+                window.pdfProcessor.createD3TreeVisualization(svg, treeData);
+            }
+        } else {
+            // Remove fullscreen
+            container.classList.remove('is-fullscreen');
+            button.textContent = 'Full Screen';
+            
+            // Reset SVG height
+            const svg = container.querySelector('svg');
+            svg.style.height = '400px';
+            
+            // Return to original position if possible
+            const docBody = document.getElementById('document-body');
+            if (docBody) {
+                docBody.appendChild(container);
+            }
+            
+            // Recreate the visualization for normal size
+            if (treeData) {
+                window.pdfProcessor.createD3TreeVisualization(svg, treeData);
+            }
+        }
+    }
+    
+    /**
+     * Setup export buttons
+     * @param {HTMLElement} container - Container element
+     */
+    function setupExportButtons(container) {
+        container.querySelectorAll('.more-options-panel button').forEach(btn => {
+            btn.addEventListener('click', function() {
+                if (this.classList.contains('export-json-btn')) {
+                    handleExportJSON(container);
+                } else if (this.classList.contains('export-markdown-btn')) {
+                    handleExportMarkdown(container);
+                } else if (this.classList.contains('export-svg-btn')) {
+                    handleExportSVG(container);
+                }
+            });
+        });
+    }
+    
+    /**
+     * Toggle more options panel
+     * @param {HTMLElement} container - Tree container element
+     */
+    function toggleMoreOptionsPanel(container) {
+        const optionsPanel = container.querySelector('.more-options-panel');
+        if (optionsPanel) {
+            optionsPanel.style.display = optionsPanel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+    
+    /**
+     * Show files used for a tree
      * @param {String} treeId - Tree identifier
      */
-    function enhanceNodeDetailsDisplay(node, event, treeId) {
-        // First show the basic details
-        window.notebookUI.showNodeDetails(node, event);
+    function showTreeFiles(treeId) {
+        const treeData = window.pdfProcessor.getStoredTree(treeId);
         
-        // Then enhance with source content if available
-        if (!treeId) return;
-        
-        const treeData = window.docAPI.getStoredTree(treeId);
-        if (!treeData || !treeData.fileContents) return;
-        
-        // Get node lineage to find context
-        const nodePath = getNodePath(node);
-        
-        // Look for matching content in file sections
-        let matchingSection = null;
-        let sectionFile = null;
-        
-        // Look for section match in file contents
-        treeData.fileContents.files.forEach(file => {
-            if (!file.sections) return;
-            
-            file.sections.forEach(section => {
-                if (section.title === node.data.name) {
-                    matchingSection = section;
-                    sectionFile = file;
-                }
-            });
-        });
-        
-        // If no direct match, try fuzzy matching with parent context
-        if (!matchingSection && nodePath.length > 1) {
-            const parentName = nodePath[nodePath.length - 2];
-            
-            treeData.fileContents.files.forEach(file => {
-                if (!file.sections) return;
-                
-                file.sections.forEach(section => {
-                    // Check if section title contains node name or vice versa
-                    if ((section.title.includes(node.data.name) || node.data.name.includes(section.title)) && 
-                        nodePath.some(name => section.content.includes(name))) {
-                        matchingSection = section;
-                        sectionFile = file;
-                    }
-                });
-            });
-        }
-        
-        // Update source panel if matching section found
-        if (matchingSection) {
-            const nodeSource = document.getElementById('node-source');
-            nodeSource.innerHTML = `
-                <h4>From ${sectionFile.name} ${matchingSection.page ? `(Page ${matchingSection.page})` : ''}</h4>
-                <h5>${matchingSection.title}</h5>
-                <div class="section-content">${formatContentForDisplay(matchingSection.content)}</div>
-            `;
+        if (treeData) {
+            const filesList = treeData.files.join(', ');
+            alert(`Files used: ${filesList}`);
         } else {
-            // Try to find any content that might be related to this node
-            const nodeName = node.data.name.toLowerCase();
-            const nodeDesc = (node.data.description || '').toLowerCase();
-            
-            let bestMatch = { file: null, content: null, score: 0 };
-            
-            // Look through all files for related content
-            treeData.fileContents.files.forEach(file => {
-                const fileText = file.text.toLowerCase();
-                
-                // Simple relevance score based on term frequency
-                const nameCount = countOccurrences(fileText, nodeName);
-                let descTerms = nodeDesc.split(/\s+/).filter(term => term.length > 3);
-                let descCount = 0;
-                
-                descTerms.forEach(term => {
-                    descCount += countOccurrences(fileText, term);
-                });
-                
-                const score = nameCount * 2 + descCount;
-                
-                if (score > bestMatch.score) {
-                    // Found better match, extract a relevant excerpt
-                    const excerpt = extractRelevantExcerpt(file.text, nodeName, descTerms);
-                    
-                    if (excerpt) {
-                        bestMatch = {
-                            file: file,
-                            content: excerpt,
-                            score: score
-                        };
-                    }
-                }
-            });
-            
-            // Update source panel with best match if found
-            if (bestMatch.score > 0) {
-                const nodeSource = document.getElementById('node-source');
-                nodeSource.innerHTML = `
-                    <h4>Related content from ${bestMatch.file.name}</h4>
-                    <div class="section-content">${formatContentForDisplay(bestMatch.content)}</div>
-                    <p class="note">(This is the most relevant content found for this node)</p>
-                `;
-            }
+            alert('Tree data not found');
         }
-        
-        // Update related concepts tab
-        updateRelatedConcepts(node, treeData.fileContents);
     }
     
     /**
-     * Count occurrences of a term in text
-     * @param {String} text - Text to search in
-     * @param {String} term - Term to search for
-     * @returns {Number} - Number of occurrences
+     * Handle exporting tree as JSON
+     * @param {HTMLElement} container - Tree container element
      */
-    function countOccurrences(text, term) {
-        let count = 0;
-        let pos = text.indexOf(term);
+    function handleExportJSON(container) {
+        if (!container) return;
         
-        while (pos !== -1) {
-            count++;
-            pos = text.indexOf(term, pos + 1);
-        }
+        const treeId = container.dataset.treeId;
         
-        return count;
-    }
-    
-    /**
-     * Extract a relevant excerpt from text
-     * @param {String} text - Full text
-     * @param {String} mainTerm - Main term to find
-     * @param {Array} secondaryTerms - Secondary terms
-     * @returns {String} - Relevant excerpt
-     */
-    function extractRelevantExcerpt(text, mainTerm, secondaryTerms) {
-        // Find position of main term
-        const pos = text.toLowerCase().indexOf(mainTerm);
-        if (pos === -1) {
-            // If main term not found, try secondary terms
-            for (const term of secondaryTerms) {
-                const termPos = text.toLowerCase().indexOf(term);
-                if (termPos !== -1) {
-                    // Extract a window around this term
-                    const start = Math.max(0, termPos - 100);
-                    const end = Math.min(text.length, termPos + term.length + 200);
-                    return text.substring(start, end) + '...';
-                }
-            }
-            return null;
-        }
-        
-        // Extract a window around the main term
-        const start = Math.max(0, pos - 100);
-        const end = Math.min(text.length, pos + mainTerm.length + 300);
-        return text.substring(start, end) + '...';
-    }
-    
-    /**
-     * Get array of node names from root to current node
-     * @param {Object} node - D3 hierarchy node
-     * @returns {Array} - Array of node names
-     */
-    function getNodePath(node) {
-        const path = [];
-        let current = node;
-        
-        while (current) {
-            path.unshift(current.data.name);
-            current = current.parent;
-        }
-        
-        return path;
-    }
-    
-    /**
-     * Format content for display with paragraph breaks
-     * @param {String} content - Raw content text
-     * @returns {String} - Formatted HTML
-     */
-    function formatContentForDisplay(content) {
-        if (!content) return '';
-        
-        // Clean up content
-        let cleanContent = content.replace(/\[Page Break\]/g, '<hr class="page-break">');
-        
-        // Convert newlines to paragraphs
-        const paragraphs = cleanContent.split(/\n\n+/);
-        
-        return paragraphs
-            .filter(p => p.trim())
-            .map(p => `<p>${p.trim()}</p>`)
-            .join('');
-    }
-    
-    /**
-     * Update related concepts tab with relevant terms
-     * @param {Object} node - D3 hierarchy node
-     * @param {Object} fileContents - Extracted file contents
-     */
-    function updateRelatedConcepts(node, fileContents) {
-        const relatedConceptsList = document.getElementById('related-concepts');
-        if (!relatedConceptsList) return;
-        
-        // Extract keywords from node and its description
-        const nodeKeywords = extractKeywords(node.data.name + ' ' + (node.data.description || ''));
-        
-        // Find related sections
-        const relatedSections = [];
-        
-        // Look for sibling nodes first
-        if (node.parent && node.parent.children) {
-            node.parent.children.forEach(sibling => {
-                if (sibling !== node) {
-                    relatedSections.push({
-                        title: sibling.data.name,
-                        relevance: 10, // High relevance for siblings
-                        isSibling: true,
-                        node: sibling
-                    });
-                }
-            });
-        }
-        
-        // Look for related content in document sections
-        fileContents.files.forEach(file => {
-            if (!file.sections) return;
-            
-            file.sections.forEach(section => {
-                // Skip if this is the current section
-                if (section.title === node.data.name) return;
-                
-                // Extract keywords from this section
-                const sectionKeywords = extractKeywords(section.title + ' ' + section.content);
-                
-                // Calculate overlap
-                let overlap = 0;
-                nodeKeywords.forEach(word => {
-                    if (sectionKeywords.has(word)) overlap++;
-                });
-                
-                if (overlap > 0) {
-                    relatedSections.push({
-                        title: section.title,
-                        file: file.name,
-                        page: section.page,
-                        relevance: overlap,
-                        section: section
-                    });
-                }
-            });
-        });
-        
-        // Sort by relevance
-        relatedSections.sort((a, b) => b.relevance - a.relevance);
-        
-        // Update the related concepts list
-        relatedConceptsList.innerHTML = '';
-        
-        if (relatedSections.length === 0) {
-            relatedConceptsList.innerHTML = '<li>No related concepts found</li>';
+        if (!treeId) {
+            alert('No tree data available to export');
             return;
         }
         
-        // Add top related sections (up to 5)
-        relatedSections.slice(0, 5).forEach(item => {
-            const li = document.createElement('li');
-            
-            if (item.isSibling) {
-                li.innerHTML = `<a href="#" class="related-concept sibling-concept" 
-                    data-node-id="${item.node.id || ''}">
-                    ${item.title} <span class="relevance">(Related Topic)</span></a>`;
-            } else {
-                li.innerHTML = `<a href="#" class="related-concept" 
-                    data-file="${item.file}" 
-                    data-page="${item.page || ''}"
-                    data-title="${item.title}">
-                    ${item.title} <span class="relevance">(${item.file}${item.page ? `, Page ${item.page}` : ''})</span></a>`;
-            }
-            
-            relatedConceptsList.appendChild(li);
-        });
+        const jsonData = window.pdfProcessor.exportTreeAsJSON(treeId);
         
-        // Add click handlers
-        relatedConceptsList.querySelectorAll('.related-concept').forEach(link => {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                
-                // Handle sibling concept clicks
-                if (this.classList.contains('sibling-concept')) {
-                    const siblingNodeId = this.getAttribute('data-node-id');
-                    
-                    // Find the D3 nodes with the sibling id
-                    const svg = document.querySelector('.tree-svg');
-                    if (!svg) return;
-                    
-                    const allNodes = d3.select(svg).selectAll('.node');
-                    allNodes.each(function(d) {
-                        if (d.data.name === this.textContent.trim().split('(')[0].trim()) {
-                            // Simulate a click on this node
-                            d3.select(this).dispatch('click');
-                        }
-                    }.bind(this));
-                    
-                    return;
-                }
-                
-                // Handle section concept clicks
-                const title = this.getAttribute('data-title');
-                const file = this.getAttribute('data-file');
-                const page = this.getAttribute('data-page');
-                
-                // Find node with matching title if possible
-                const svg = document.querySelector('.tree-svg');
-                if (!svg) return;
-                
-                const allNodes = d3.select(svg).selectAll('.node');
-                let found = false;
-                
-                // Try to find and highlight the matching node
-                allNodes.each(function(d) {
-                    if (d.data.name === title) {
-                        // Simulate a click on this node
-                        d3.select(this).dispatch('click');
-                        found = true;
-                    }
-                });
-                
-                // If not found, display the content directly
-                if (!found) {
-                    // Get tree ID from the container
-                    const treeId = document.querySelector('.ai-window').dataset.treeId;
-                    if (!treeId) return;
-                    
-                    const treeData = window.docAPI.getStoredTree(treeId);
-                    if (!treeData || !treeData.fileContents) return;
-                    
-                    // Find section with matching title
-                    let matchingSection = null;
-                    let sectionFile = null;
-                    
-                    treeData.fileContents.files.forEach(file => {
-                        if (!file.sections) return;
-                        
-                        file.sections.forEach(section => {
-                            if (section.title === title) {
-                                matchingSection = section;
-                                sectionFile = file;
-                            }
-                        });
-                    });
-                    
-                    if (matchingSection) {
-                        // Show in a modal or update the node details panel
-                        const nodeSource = document.getElementById('node-source');
-                        nodeSource.innerHTML = `
-                            <h4>From ${sectionFile.name} ${matchingSection.page ? `(Page ${matchingSection.page})` : ''}</h4>
-                            <h5>${matchingSection.title}</h5>
-                            <div class="section-content">${formatContentForDisplay(matchingSection.content)}</div>
-                        `;
-                        
-                        // Switch to source tab
-                        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-                        document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
-                        document.querySelector('.tab-btn[data-tab="source"]').classList.add('active');
-                        document.getElementById('source-tab').classList.add('active');
-                    }
-                }
-            });
-        });
+        if (jsonData) {
+            // Create and trigger download
+            downloadFile(jsonData, 'knowledge-tree.json', 'application/json');
+        } else {
+            alert('Failed to export tree as JSON');
+        }
     }
     
     /**
-     * Extract keywords from text
-     * @param {String} text - Input text
-     * @returns {Set} - Set of keywords
+     * Handle exporting tree as Markdown
+     * @param {HTMLElement} container - Tree container element
      */
-    function extractKeywords(text) {
-        if (!text) return new Set();
+    function handleExportMarkdown(container) {
+        if (!container) return;
         
-        // Remove punctuation and convert to lowercase
-        const cleanText = text.toLowerCase().replace(/[^\w\s]/g, ' ');
+        const treeId = container.dataset.treeId;
         
-        // Split into words
-        const words = cleanText.split(/\s+/);
+        if (!treeId) {
+            alert('No tree data available to export');
+            return;
+        }
         
-        // Remove common stop words
-        const stopWords = new Set(['a', 'an', 'the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'is', 'are', 'was', 'were', 'of', 'from']);
+        const markdownData = window.pdfProcessor.exportTreeAsMarkdown(treeId);
         
-        const keywords = new Set();
+        if (markdownData) {
+            // Create and trigger download
+            downloadFile(markdownData, 'knowledge-tree.md', 'text/markdown');
+        } else {
+            alert('Failed to export tree as Markdown');
+        }
+    }
+    
+    /**
+     * Handle exporting tree as SVG
+     * @param {HTMLElement} container - Tree container element
+     */
+    function handleExportSVG(container) {
+        if (!container) return;
         
-        words.forEach(word => {
-            if (word.length > 3 && !stopWords.has(word)) {
-                keywords.add(word);
-            }
-        });
+        const svg = container.querySelector('svg');
         
-        return keywords;
+        if (!svg) {
+            alert('SVG element not found');
+            return;
+        }
+        
+        // Clone the SVG for export
+        const clonedSvg = svg.cloneNode(true);
+        
+        // Add inline CSS to ensure styles are included
+        const style = document.createElement('style');
+        style.textContent = `
+        .node circle {
+            fill: #557ba1;
+            stroke: #233749;
+            stroke-width: 1.5px;
+        }
+        .node text {
+            font: 12px sans-serif;
+            fill: #333;
+        }
+        .node.selected circle {
+            fill: #233749;
+            r: 8;
+        }
+        .link {
+            fill: none;
+            stroke: #ccc;
+            stroke-width: 1.5px;
+        }
+        `;
+        clonedSvg.insertBefore(style, clonedSvg.firstChild);
+        
+        // Adjust viewBox to ensure all content is visible
+        const bbox = svg.getBBox();
+        clonedSvg.setAttribute('viewBox', `${bbox.x - 20} ${bbox.y - 20} ${bbox.width + 40} ${bbox.height + 40}`);
+        
+        // Export
+        const svgData = new XMLSerializer().serializeToString(clonedSvg);
+        downloadFile(svgData, 'knowledge-tree.svg', 'image/svg+xml');
+    }
+    
+    /**
+     * Download file
+     * @param {String} content - File content
+     * @param {String} fileName - File name
+     * @param {String} contentType - Content type
+     */
+    function downloadFile(content, fileName, contentType) {
+        const blob = new Blob([content], { type: contentType });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        
+        setTimeout(() => {
+            URL.revokeObjectURL(url);
+        }, 100);
     }
     
     /**
@@ -627,7 +442,7 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingDiv.className = 'loading-indicator';
         loadingDiv.innerHTML = `
             <div class="loading-spinner"></div>
-            <div class="loading-status">Initializing...</div>
+            <div class="loading-status">Initializing document analysis...</div>
             <div class="progress-container">
                 <div class="progress-bar" style="width: 0%"></div>
             </div>
@@ -668,7 +483,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 statusText = 'Processing document structure...';
                 break;
             case 'finalizing':
-                statusText = 'Finalizing knowledge tree...';
+                statusText = 'Generating knowledge tree visualization...';
                 break;
             case 'complete':
                 statusText = 'Knowledge tree generation complete!';
@@ -682,107 +497,11 @@ document.addEventListener('DOMContentLoaded', function() {
         statusElement.textContent = statusText;
     }
     
-    /**
-     * Toggle more options panel
-     * @param {HTMLElement} container - Tree container element
-     */
-    function toggleMoreOptionsPanel(container) {
-        const optionsPanel = container.querySelector('.more-options-panel');
-        if (optionsPanel) {
-            optionsPanel.style.display = optionsPanel.style.display === 'none' ? 'block' : 'none';
-        }
-    }
-    
-    /**
-     * Show files used for a tree
-     * @param {String} treeId - Tree identifier
-     */
-    function showTreeFiles(treeId) {
-        const treeData = window.docAPI.getStoredTree(treeId);
-        
-        if (treeData) {
-            const filesList = treeData.files.join(', ');
-            alert(`Files used: ${filesList}`);
-        } else {
-            alert('Tree data not found');
-        }
-    }
-    
-    /**
-     * Handle exporting tree as JSON
-     * @param {HTMLElement} container - Tree container element
-     */
-    function handleExportJSON(container) {
-        if (!container) return;
-        
-        const treeId = container.dataset.treeId;
-        
-        if (!treeId) {
-            // Fall back to using the in-memory tree data
-            if (window.treeData) {
-                window.notebookUI.exportAsJSON(window.treeData);
-            } else {
-                alert('No tree data available to export');
-            }
-            return;
-        }
-        
-        const jsonData = window.docAPI.exportTreeAsJSON(treeId);
-        
-        if (jsonData) {
-            // Create and trigger download
-            window.notebookUI.downloadFile(jsonData, 'knowledge-tree.json', 'application/json');
-        } else {
-            alert('Failed to export tree as JSON');
-        }
-    }
-    
-    /**
-     * Handle exporting tree as Markdown
-     * @param {HTMLElement} container - Tree container element
-     */
-    function handleExportMarkdown(container) {
-        if (!container) return;
-        
-        const treeId = container.dataset.treeId;
-        
-        if (!treeId) {
-            // Fall back to using the in-memory tree data
-            if (window.treeData) {
-                window.notebookUI.exportAsMarkdown(window.treeData);
-            } else {
-                alert('No tree data available to export');
-            }
-            return;
-        }
-        
-        const markdownData = window.docAPI.exportTreeAsMarkdown(treeId);
-        
-        if (markdownData) {
-            // Create and trigger download
-            window.notebookUI.downloadFile(markdownData, 'knowledge-tree.md', 'text/markdown');
-        } else {
-            alert('Failed to export tree as Markdown');
-        }
-    }
-    
-    /**
-     * Handle exporting tree as SVG
-     * @param {HTMLElement} container - Tree container element
-     */
-    function handleExportSVG(container) {
-        if (!container) return;
-        
-        const svg = container.querySelector('svg');
-        
-        if (!svg) {
-            alert('SVG element not found');
-            return;
-        }
-        
-        window.notebookUI.exportAsSVG(svg);
-    }
-    
-    // Expose the API generate function for the UI to use
-    window.apiGenerateTreeInline = apiGenerateTreeInline;
+    // Expose public API
+    window.docAPI = {
+        processDocuments: window.pdfProcessor.processDocuments,
+        getStoredTree: window.pdfProcessor.getStoredTree,
+        exportTreeAsJSON: window.pdfProcessor.exportTreeAsJSON,
+        exportTreeAsMarkdown: window.pdfProcessor.exportTreeAsMarkdown
+    };
 });

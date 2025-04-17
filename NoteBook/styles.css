@@ -621,8 +621,6 @@ body {
     height: calc(100vh - 80px);
 }
 
-/* API Integration Styles */
-
 /* Loading indicator */
 .loading-indicator {
     display: flex;
@@ -713,6 +711,20 @@ body {
     font-size: 12px;
     color: #6c757d;
     margin-left: 10px;
+}
+
+/* D3 Tooltip */
+.d3-tooltip {
+    position: absolute;
+    visibility: hidden;
+    background-color: white;
+    border: 1px solid #233749;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    max-width: 300px;
+    font-size: 12px;
 }
 
 /* Responsive Styles */

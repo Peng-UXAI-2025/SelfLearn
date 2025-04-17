@@ -87,6 +87,11 @@ body {
     background-color: #f0f0f0;
 }
 
+.tool-button.active {
+    background-color: #e6f2ff;
+    color: #0066cc;
+}
+
 .tool-separator {
     color: #ddd;
     margin: 0 5px;
@@ -167,6 +172,12 @@ body {
     line-height: 1.6;
 }
 
+#document-body.editing {
+    border: 1px dashed #ccc;
+    padding: 5px;
+    border-radius: 4px;
+}
+
 /* AI Window Styles - Enhanced for inline document placement */
 .ai-window {
     width: 100%; /* Match parent width */
@@ -236,6 +247,11 @@ body {
     background-color: #557ba1;
 }
 
+#generate-btn.disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
 .ai-window-body {
     padding: 15px;
     min-height: 400px;
@@ -246,6 +262,7 @@ body {
 .window-top-area {
     flex: 1;
     margin-bottom: 15px;
+    position: relative; /* For the loading indicator positioning */
 }
 
 .file-upload-area {
@@ -357,6 +374,8 @@ body {
     background-color: white;
     overflow: hidden;
     position: relative;
+    border: 1px solid #eee;
+    border-radius: 4px;
 }
 
 .tree-svg {
@@ -418,7 +437,6 @@ body {
     display: none;
     max-height: 80vh;
     overflow: hidden;
-    display: flex;
     flex-direction: column;
 }
 
@@ -547,6 +565,25 @@ body {
     font-weight: bold;
 }
 
+.dropdown-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-file-item:last-child {
+    border-bottom: none;
+}
+
+.remove-dropdown-file {
+    color: #c62828;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
 /* Drag placeholder for inline movement */
 .drag-placeholder {
     width: 100%;
@@ -596,6 +633,14 @@ body {
     padding: 15px;
     margin: 10px 0;
     width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.9);
+    z-index: 100;
+    justify-content: center;
 }
 
 .loading-spinner {
@@ -621,6 +666,7 @@ body {
 
 .progress-container {
     width: 100%;
+    max-width: 300px;
     background-color: #e9ecef;
     border-radius: 4px;
     height: 10px;

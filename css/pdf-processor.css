@@ -1,0 +1,271 @@
+/* PDF Processor Specific Styles */
+
+/* File Upload Area */
+.file-upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.file-upload-area:hover, .file-upload-area.drag-over {
+    border-color: #557ba1;
+    background-color: rgba(85, 123, 161, 0.05);
+}
+
+#drop-zone {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+#file-upload {
+    display: none;
+}
+
+#drop-zone label {
+    background-color: #233749;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#drop-zone label:hover {
+    background-color: #557ba1;
+}
+
+/* Uploaded Files List */
+#uploaded-files-list {
+    margin-top: 15px;
+    text-align: left;
+    width: 100%;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.remove-file {
+    color: #c62828;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+/* Settings Panel */
+.window-bottom-area {
+    display: flex;
+    flex-direction: column;
+}
+
+.control-panel {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.control-item {
+    flex: 1;
+    position: relative;
+}
+
+.control-item button {
+    width: 100%;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 10;
+    display: none;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.model-option {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.model-option:hover {
+    background-color: #f5f5f5;
+}
+
+.model-option.selected {
+    background-color: #e9f0f7;
+    border: 1px solid #233749;
+}
+
+.files-dropdown {
+    max-height: 250px;
+}
+
+.dropdown-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-file-item:last-child {
+    border-bottom: none;
+}
+
+.remove-dropdown-file {
+    color: #c62828;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+/* Generate button */
+#generate-tree-btn {
+    background-color: #233749;
+    color: white;
+    border: none;
+}
+
+#generate-tree-btn:hover {
+    background-color: #557ba1;
+}
+
+#generate-tree-btn.disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+/* PDF Preview */
+.pdf-preview {
+    margin-top: 15px;
+    display: none;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.pdf-preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 15px;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+}
+
+.pdf-preview-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.pdf-preview-controls button {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 4px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.pdf-preview-content {
+    padding: 15px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.pdf-page {
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px dashed #ddd;
+}
+
+.pdf-page:last-child {
+    margin-bottom: 0;
+    padding-bottom: 0;
+    border-bottom: none;
+}
+
+.page-header {
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+/* Processing indicators */
+.processing-result {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 4px;
+    border-left: 3px solid #233749;
+}
+
+.processing-errors {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #fff8f8;
+    border-radius: 4px;
+    border-left: 3px solid #c62828;
+    color: #c62828;
+}
+
+.extraction-progress {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    text-align: center;
+}
+
+/* File type icon indicators */
+.file-type-icon {
+    margin-right: 8px;
+    font-size: 16px;
+}
+
+.pdf-icon::before {
+    content: "📄";
+}
+
+.docx-icon::before {
+    content: "📝";
+}
+
+.txt-icon::before {
+    content: "📃";
+}

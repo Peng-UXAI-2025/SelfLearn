@@ -1,0 +1,316 @@
+/* Knowledge Tree Visualization Styles */
+.visualization-container {
+    width: 100%;
+    height: 400px;
+    background-color: white;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.tree-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.node {
+    cursor: pointer;
+}
+
+.node circle {
+    fill: #557ba1;
+    stroke: #233749;
+    stroke-width: 1.5px;
+    transition: r 0.2s ease, fill 0.2s ease;
+}
+
+.node:hover circle {
+    fill: #7ba1c7;
+    r: 7;
+}
+
+.node.selected circle {
+    fill: #233749;
+    r: 8;
+    stroke-width: 2px;
+}
+
+.node text {
+    font: 12px sans-serif;
+    fill: #333;
+    pointer-events: none; /* Make text non-blocking for node clicks */
+}
+
+.node.selected text {
+    font-weight: bold;
+    fill: #000;
+}
+
+.link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1.5px;
+}
+
+/* Node Details Panel */
+.node-details-panel {
+    position: fixed;
+    right: 20px;
+    top: 100px;
+    width: 350px;
+    max-width: 90vw;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1000;
+    display: none;
+    max-height: 80vh;
+    overflow: hidden;
+    flex-direction: column;
+}
+
+.node-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 15px;
+    background-color: #233749;
+    color: white;
+    border-radius: 6px 6px 0 0;
+}
+
+.node-details-header h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.close-details-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 5px;
+}
+
+.node-details-content {
+    padding: 15px;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 15px;
+}
+
+.tab-btn {
+    background: none;
+    border: none;
+    padding: 8px 15px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+.tab-btn.active {
+    border-bottom-color: #233749;
+    color: #233749;
+    font-weight: bold;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+#node-source {
+    background-color: #f9f9f9;
+    padding: 10px;
+    border-radius: 4px;
+    border-left: 3px solid #233749;
+    margin-top: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+#related-concepts {
+    list-style-type: none;
+    padding: 0;
+}
+
+#related-concepts li {
+    padding: 5px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#related-concepts li:last-child {
+    border-bottom: none;
+}
+
+#related-concepts a {
+    color: #233749;
+    text-decoration: none;
+}
+
+#related-concepts a:hover {
+    text-decoration: underline;
+}
+
+#further-reading {
+    margin-top: 10px;
+}
+
+/* D3 Tooltip */
+.d3-tooltip {
+    position: absolute;
+    visibility: hidden;
+    background-color: white;
+    border: 1px solid #233749;
+    border-radius: 4px;
+    padding: 8px;
+    box-shadow: 0px 2px 8px rgba(0,0,0,0.15);
+    z-index: 1000;
+    max-width: 300px;
+    font-size: 12px;
+}
+
+/* Tree export options */
+.export-options {
+    margin-top: 10px;
+    text-align: center;
+}
+
+.export-options button {
+    margin: 0 5px;
+    padding: 6px 12px;
+    background-color: #233749;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.export-options button:hover {
+    background-color: #557ba1;
+}
+
+/* Tree model label */
+.model-label {
+    font-size: 12px;
+    color: #6c757d;
+    margin-left: 10px;
+}
+
+/* Knowledge tree component styles for PDF/Notes tree generation */
+.structure-customization {
+    margin-top: 15px;
+}
+
+#notes-structure-textarea, #structure-textarea {
+    width: 100%;
+    height: 120px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+    font-family: inherit;
+    font-size: 14px;
+    margin-top: 5px;
+}
+
+.is-fullscreen .visualization-container {
+    height: calc(100vh - 80px);
+}
+
+/* Tree nodes contextual styling */
+.node.category-node circle {
+    fill: #3498db;
+}
+
+.node.concept-node circle {
+    fill: #2ecc71;
+}
+
+.node.note-node circle {
+    fill: #e74c3c;
+}
+
+/* Node search and filter */
+.tree-controls {
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-radius: 4px;
+    margin-bottom: 10px;
+}
+
+.tree-search {
+    display: flex;
+    margin-bottom: 10px;
+}
+
+.tree-search input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px 0 0 4px;
+}
+
+.tree-search button {
+    padding: 8px 15px;
+    background-color: #233749;
+    color: white;
+    border: none;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+}
+
+.filter-options {
+    display: flex;
+    gap: 10px;
+}
+
+.filter-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Tree legend */
+.tree-legend {
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    margin-top: 10px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.legend-color {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    margin-right: 8px;
+}
+
+.legend-category {
+    background-color: #3498db;
+}
+
+.legend-concept {
+    background-color: #2ecc71;
+}
+
+.legend-note {
+    background-color: #e74c3c;
+}

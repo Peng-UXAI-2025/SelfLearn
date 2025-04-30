@@ -1,452 +1,153 @@
 /**
- * Web Notebook Application
- * Main JavaScript file that initializes the application and integrates all modules
+ * Main Application JavaScript
+ * Initializes the WebNotebook application and sets up event handlers
  */
 
-// Initialize the application namespace
-window.WebNotebook = window.WebNotebook || {};
+document.addEventListener('DOMContentLoaded', function() {
+    // Global state
+    const app = {
+        isDragging: false,
+        startY: 0,
+        currentDragTarget: null,
+        dragPlaceholder: null,
+        dropTarget: null,
+        selectedNode: null,
+        uploadedFiles: [],
+        notesArray: [],
+        clipboardMonitorActive: false,
+        selectedModel: 'gpt-4o' // Default model
+    };
 
-// Main Application Module
-WebNotebook.App = (function() {
-    // Private variables 
-    let currentDocument = null;
-    let isInitialized = false;
+    // Initialize the application
+    initializeApp();
 
     /**
-     * Initialize the application when DOM is ready
+     * Initialize the application
      */
-    function initialize() {
-        console.log('WebNotebook application starting initialization');
+    function initializeApp() {
+        // Initialize document and UI
+        initializeDocument();
+        initializeEventListeners();
         
-        // Check if Utils and Storage are available
-        if (!WebNotebook.Utils || !WebNotebook.Utils.Storage) {
-            console.error('Required modules not loaded. Check script loading order.');
-            return;
+        // Load saved data from storage if available
+        try {
+            loadSavedData();
+        } catch (error) {
+            console.error('Error loading saved data:', error);
+            // Clear potentially corrupted data
+            window.storage.removeItem('webNotebookDocument');
+            window.knowledgeApi.showStatusMessage("Error loading saved data. Starting with a new document.", true);
         }
         
-        // Initialize storage first
-        WebNotebook.Utils.Storage.initialize();
+        // Expose public API
+        window.webNotebook = {
+            handleDragStart,
+            toggleMoreOptionsPanel,
+            app: app,
+            utils: window.utils,
+            storage: window.storage,
+            knowledgeApi: window.knowledgeApi,
+            treeGenerator: window.treeGenerator,
+            treeVisualizer: window.treeVisualizer,
+            pdfParser: window.pdfParser,
+            pdfProcessor: window.pdfProcessor,
+            clipboardMonitor: window.clipboardMonitor,
+            textProcessor: window.textProcessor
+        };
         
-        // Initialize UI components
-        if (WebNotebook.Interface.FileManager) {
-            WebNotebook.Interface.FileManager.initialize();
-        }
-        
-        if (WebNotebook.Interface.ViewModes) {
-            WebNotebook.Interface.ViewModes.initialize();
-        }
-        
-        if (WebNotebook.Interface.ContextMenu) {
-            WebNotebook.Interface.ContextMenu.initialize();
-        }
-        
-        if (WebNotebook.Interface.DragDrop) {
-            WebNotebook.Interface.DragDrop.initialize();
-        }
-        
-        if (WebNotebook.Interface.RoadmapTracker) {
-            WebNotebook.Interface.RoadmapTracker.initialize();
-        }
-        
-        // Initialize search functionality
-        if (WebNotebook.Utils.Search) {
-            WebNotebook.Utils.Search.initialize();
-        }
-        
-        // Initialize AI Copilot
-        if (WebNotebook.Copilot && WebNotebook.Copilot.initialize) {
-            WebNotebook.Copilot.initialize();
-        }
-        
-        // Initialize Knowledge Tree
-        if (WebNotebook.KnowledgeTree) {
-            WebNotebook.KnowledgeTree.initialize();
-        }
-        
-        // Add event listeners to all common UI elements
-        addGlobalEventListeners();
-        
-        // Load last accessed document if available
-        loadLastDocument();
-        
-        isInitialized = true;
-        console.log('WebNotebook application initialization completed');
+        console.log("WebNotebook application initialized successfully");
     }
-    
+
     /**
-     * Add event listeners to global UI elements
+     * Initialize the document
      */
-    function addGlobalEventListeners() {
-        // Header elements
-        const documentTitle = document.getElementById('document-title');
-        if (documentTitle) {
-            documentTitle.addEventListener('input', updateDocumentTitle);
-            documentTitle.addEventListener('blur', saveCurrentDocument);
-        }
+    function initializeDocument() {
+        // Update breadcrumb with title
+        updateBreadcrumb();
         
-        // Menu toggle
-        const menuToggle = document.getElementById('menu-toggle');
-        if (menuToggle) {
-            menuToggle.addEventListener('click', toggleSidebar);
-        }
+        // Add event listener for document title changes
+        document.getElementById('document-title').addEventListener('input', updateBreadcrumb);
+        
+        // Set up document-level drag events
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('mouseup', handleDragEnd);
+    }
+
+    /**
+     * Update breadcrumb with current document title
+     */
+    function updateBreadcrumb() {
+        const title = document.getElementById('document-title').textContent;
+        document.querySelector('.file-title').textContent = title || 'Untitled Document';
+    }
+
+    /**
+     * Initialize all event listeners
+     */
+    function initializeEventListeners() {
+        // AI Tools dropdown
+        document.getElementById('ai-tools-btn').addEventListener('click', toggleAIDropdown);
+        
+        // Tool buttons
+        document.getElementById('pdf-tree-btn').addEventListener('click', showPdfKnowledgeWindow);
+        document.getElementById('clipboard-copilot-btn').addEventListener('click', showClipboardCopilotWindow);
+        document.getElementById('notes-tree-btn').addEventListener('click', showNotesTreeWindow);
         
         // Formatting tools
         initializeFormattingTools();
         
-        // AI tools dropdown
-        const aiToolsBtn = document.getElementById('ai-tools-btn');
-        if (aiToolsBtn) {
-            aiToolsBtn.addEventListener('click', toggleAIDropdown);
-        }
-        
-        // Document body
-        const documentBody = document.getElementById('document-body');
-        if (documentBody) {
-            documentBody.addEventListener('focus', function() {
-                this.classList.add('editing');
-            });
-            
-            documentBody.addEventListener('blur', function() {
-                this.classList.remove('editing');
-                saveCurrentDocument();
-            });
-            
-            documentBody.addEventListener('input', function() {
-                // Auto-save after a delay
-                if (WebNotebook.Utils) {
-                    WebNotebook.Utils.debounce(saveCurrentDocument, 1000)();
-                } else {
-                    // Fallback if Utils not loaded
-                    setTimeout(saveCurrentDocument, 1000);
-                }
-            });
-        }
-        
-        // Global click handler for closing dropdowns
+        // Close dropdowns when clicking outside
         document.addEventListener('click', function(event) {
-            // Close AI dropdown if clicking outside
             if (!event.target.matches('#ai-tools-btn') && !event.target.closest('#ai-dropdown')) {
-                const dropdown = document.getElementById('ai-dropdown');
-                if (dropdown && dropdown.style.display === 'block') {
-                    dropdown.style.display = 'none';
-                }
+                document.getElementById('ai-dropdown').style.display = 'none';
             }
             
-            // Close other open menus
-            closeOpenMenus(event);
+            // Close any dropdown panels when clicking outside
+            if (!event.target.matches('.control-item button') && !event.target.closest('.dropdown-panel')) {
+                document.querySelectorAll('.dropdown-panel').forEach(panel => {
+                    panel.style.display = 'none';
+                });
+            }
         });
         
-        // Handle keyboard shortcuts
-        document.addEventListener('keydown', handleKeyboardShortcuts);
+        // Make document body editable
+        document.getElementById('document-body').addEventListener('focus', function() {
+            this.classList.add('editing');
+        });
         
-        // Tree/Icon view toggle buttons
-        const treeViewBtn = document.getElementById('tree-view-btn');
-        const iconViewBtn = document.getElementById('icon-view-btn');
+        document.getElementById('document-body').addEventListener('blur', function() {
+            this.classList.remove('editing');
+        });
         
-        if (treeViewBtn && WebNotebook.Interface.ViewModes) {
-            treeViewBtn.addEventListener('click', function() {
-                WebNotebook.Interface.ViewModes.switchViewMode('tree');
-            });
-        }
-        
-        if (iconViewBtn && WebNotebook.Interface.ViewModes) {
-            iconViewBtn.addEventListener('click', function() {
-                WebNotebook.Interface.ViewModes.switchViewMode('icon');
-            });
-        }
-        
-        // AI Copilot button
-        const copilotBtn = document.getElementById('copilot-btn');
-        if (copilotBtn && WebNotebook.Copilot) {
-            copilotBtn.addEventListener('click', function() {
-                WebNotebook.Copilot.toggleCopilot();
-            });
-        }
-        
-        // Doc Summary button
-        const docSummaryBtn = document.getElementById('doc-summary-btn');
-        if (docSummaryBtn) {
-            docSummaryBtn.addEventListener('click', showDocSummaryWindow);
-        }
-        
-        // AI Assistant button
-        const aiAssistantBtn = document.getElementById('ai-assistant-btn');
-        if (aiAssistantBtn) {
-            aiAssistantBtn.addEventListener('click', showAIAssistantWindow);
-        }
-        
-        // Summarize Text button
-        const summarizeBtn = document.getElementById('summarize-btn');
-        if (summarizeBtn && WebNotebook.Copilot) {
-            summarizeBtn.addEventListener('click', function() {
-                const selectedText = getSelectedText();
-                if (selectedText) {
-                    WebNotebook.Copilot.processManualText(selectedText);
-                } else {
-                    alert('Please select some text to summarize.');
-                }
-            });
-        }
-    }
-    
-    /**
-     * Get selected text from the document
-     * @returns {string} - Selected text
-     */
-    function getSelectedText() {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            return range.toString();
-        }
-        return '';
-    }
-    
-    /**
-     * Close open menus when clicking outside them
-     * @param {Event} event - Click event
-     */
-    function closeOpenMenus(event) {
-        // Close context menu if open
-        const contextMenu = document.querySelector('.context-menu');
-        if (contextMenu && contextMenu.style.display === 'block' && !event.target.closest('.context-menu')) {
-            contextMenu.style.display = 'none';
-        }
-    }
-    
-    /**
-     * Handle keyboard shortcuts
-     * @param {KeyboardEvent} e - Keyboard event
-     */
-    function handleKeyboardShortcuts(e) {
-        // Ctrl/Cmd + S to save
-        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
-            e.preventDefault();
-            saveCurrentDocument();
-            
-            // Show a save indicator
-            showSaveIndicator();
-        }
-        
-        // Ctrl/Cmd + F to search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f' && WebNotebook.Utils.Search) {
-            e.preventDefault();
-            WebNotebook.Utils.Search.showSearchUI();
-        }
-        
-        // Ctrl/Cmd + C to capture selected text when copilot is active
-        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && WebNotebook.Copilot && WebNotebook.Copilot.isMonitoring && WebNotebook.Copilot.isMonitoring()) {
-            // Let the default copy happen first
-            setTimeout(() => {
-                const selectedText = getSelectedText();
-                if (selectedText && WebNotebook.Copilot.ClipboardMonitor) {
-                    WebNotebook.Copilot.ClipboardMonitor.manualCapture(selectedText);
-                }
-            }, 100);
-        }
-    }
-    
-    /**
-     * Show a temporary save indicator
-     */
-    function showSaveIndicator() {
-        const saveIndicator = document.createElement('div');
-        saveIndicator.className = 'save-indicator';
-        saveIndicator.textContent = 'Document Saved';
-        
-        document.body.appendChild(saveIndicator);
-        
-        setTimeout(() => {
-            saveIndicator.classList.add('fade-out');
-            setTimeout(() => {
-                document.body.removeChild(saveIndicator);
-            }, 300);
-        }, 1500);
-    }
-    
-    /**
-     * Update document title and breadcrumb
-     */
-    function updateDocumentTitle() {
-        const title = document.getElementById('document-title').textContent;
-        if (WebNotebook.Interface.FileManager) {
-            WebNotebook.Interface.FileManager.updateBreadcrumb(title);
-        }
-        
-        // Update document tab title
-        document.title = title + ' - Web Notebook';
-        
-        // Mark document as modified
-        if (currentDocument) {
-            currentDocument.modified = true;
-        }
-    }
-    
-    /**
-     * Save current document content
-     */
-    function saveCurrentDocument() {
-        if (WebNotebook.Interface.FileManager) {
-            WebNotebook.Interface.FileManager.saveCurrentDocument();
-        }
-        
-        // Save as last accessed document
-        saveLastDocument();
-    }
-    
-    /**
-     * Save the current document as the last accessed one
-     */
-    function saveLastDocument() {
-        if (!WebNotebook.Interface.FileManager || !WebNotebook.Utils.Storage) {
-            return;
-        }
-        
-        const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
-        if (selectedNode) {
-            const nodeId = selectedNode.dataset.id;
-            if (nodeId) {
-                const settings = WebNotebook.Utils.Storage.loadSettings();
-                settings.lastDocument = nodeId;
-                WebNotebook.Utils.Storage.saveSettings(settings);
-            }
-        }
-    }
-    
-    /**
-     * Load the last accessed document
-     */
-    function loadLastDocument() {
-        if (!WebNotebook.Utils.Storage || !WebNotebook.Interface.FileManager) {
-            return;
-        }
-        
-        const settings = WebNotebook.Utils.Storage.loadSettings();
-        if (settings.lastDocument) {
-            const node = document.querySelector(`.node-content[data-id="${settings.lastDocument}"]`);
-            if (node) {
-                WebNotebook.Interface.FileManager.selectNode(node);
-            } else {
-                // If node not found, try to create a default document
-                createDefaultDocument();
-            }
-        } else {
-            // No last document, create a default one
-            createDefaultDocument();
-        }
-    }
-    
-    /**
-     * Create a default document if none exists
-     */
-    function createDefaultDocument() {
-        if (!WebNotebook.Utils.Storage || !WebNotebook.Interface.FileManager) {
-            return;
-        }
-        
-        // Check if there are any documents
-        const nodesData = WebNotebook.Utils.Storage.loadNodesData();
-        
-        if (Object.keys(nodesData).length === 0) {
-            // Create a welcome document
-            const welcomeNodeId = WebNotebook.Interface.FileManager.createNode(
-                'Welcome to Web Notebook', 
-                'file', 
-                null
-            );
-            
-            // Create content for welcome document
-            const welcomeContent = `
-                <h1>Welcome to Web Notebook</h1>
-                <p>This is your personal knowledge management and learning platform. Here are some tips to get started:</p>
-                <h2>Key Features</h2>
-                <ul>
-                    <li><strong>File Management:</strong> Create and organize notes, knowledge points, and learning roadmaps</li>
-                    <li><strong>AI Copilot:</strong> Extract content automatically from your clipboard</li>
-                    <li><strong>Knowledge Tree:</strong> Visualize and organize your knowledge</li>
-                </ul>
-                <h2>Quick Tips</h2>
-                <ul>
-                    <li>Use the <strong>AI Tools</strong> button to access AI-powered features</li>
-                    <li>Right-click in the sidebar to create new items</li>
-                    <li>Toggle between tree and icon views using the buttons in the header</li>
-                </ul>
-                <p>Let's get started building your knowledge base!</p>
-            `;
-            
-            // Get the node and update its content
-            const welcomeNode = document.querySelector(`.node-content[data-id="${welcomeNodeId}"]`);
-            if (welcomeNode) {
-                const nodeData = WebNotebook.Utils.Storage.getNodeById(welcomeNodeId);
-                if (nodeData) {
-                    nodeData.content = welcomeContent;
-                    WebNotebook.Utils.Storage.saveNode(welcomeNodeId, nodeData);
-                }
+        // Node details panel tab functionality
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Remove active class from all tabs
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                // Add active class to clicked tab
+                this.classList.add('active');
                 
-                // Select the welcome node
-                WebNotebook.Interface.FileManager.selectNode(welcomeNode);
+                // Hide all tab panels
+                document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+                // Show selected tab panel
+                const tabId = this.getAttribute('data-tab') + '-tab';
+                document.getElementById(tabId).classList.add('active');
+            });
+        });
+        
+        // Close node details panel
+        document.querySelector('.close-details-btn').addEventListener('click', function() {
+            document.getElementById('node-details-panel').style.display = 'none';
+            // Deselect node in visualization if it exists
+            if (app.selectedNode) {
+                d3.select(app.selectedNode).classed('selected', false);
+                app.selectedNode = null;
             }
-        }
+        });
     }
     
     /**
-     * Toggle sidebar visibility
-     */
-    function toggleSidebar() {
-        const sidebar = document.getElementById('sidebar');
-        if (sidebar) {
-            sidebar.classList.toggle('collapsed');
-            
-            // Update content area spacing
-            const contentArea = document.querySelector('.content-area');
-            if (contentArea) {
-                contentArea.classList.toggle('full-width', sidebar.classList.contains('collapsed'));
-            }
-        }
-    }
-    
-    /**
-     * Toggle AI tools dropdown
-     */
-    function toggleAIDropdown() {
-        const dropdown = document.getElementById('ai-dropdown');
-        if (dropdown) {
-            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
-        }
-    }
-    
-    /**
-     * Show document summary window
-     */
-    function showDocSummaryWindow() {
-        const docSummaryWindow = document.getElementById('doc-summary-window');
-        if (docSummaryWindow) {
-            // Reset file list
-            const filesList = document.getElementById('uploaded-files-list');
-            if (filesList) {
-                filesList.innerHTML = '';
-            }
-            
-            // Reset generate button
-            const generateBtn = document.getElementById('generate-summary-btn');
-            if (generateBtn) {
-                generateBtn.disabled = true;
-            }
-            
-            docSummaryWindow.style.display = 'flex';
-        }
-    }
-    
-    /**
-     * Show AI assistant window
-     */
-    function showAIAssistantWindow() {
-        // This would show an AI chat assistant window
-        alert('AI Assistant functionality will be available in a future update.');
-    }
-    
-    /**
-     * Initialize the formatting tools
+     * Initialize formatting tools
      */
     function initializeFormattingTools() {
         const formatButtons = document.querySelectorAll('.tool-button');
@@ -466,17 +167,18 @@ WebNotebook.App = (function() {
                     document.execCommand('underline', false, null);
                     this.classList.toggle('active');
                 } else if (title === 'Heading 1') {
-                    applyHeadingFormat('h1');
+                    window.utils.applyHeadingFormat('h1');
                 } else if (title === 'Heading 2') {
-                    applyHeadingFormat('h2');
+                    window.utils.applyHeadingFormat('h2');
                 } else if (title === 'Heading 3') {
-                    applyHeadingFormat('h3');
+                    window.utils.applyHeadingFormat('h3');
                 } else if (title === 'Bullet List') {
                     document.execCommand('insertUnorderedList', false, null);
                 } else if (title === 'Numbered List') {
                     document.execCommand('insertOrderedList', false, null);
                 } else if (title === 'To-do List') {
-                    insertTodoList();
+                    // Custom to-do list implementation
+                    window.utils.insertTodoList();
                 } else if (title === 'Add Link') {
                     const url = prompt('Enter the URL:');
                     if (url) {
@@ -490,142 +192,620 @@ WebNotebook.App = (function() {
                 }
                 
                 // Return focus to the editor
-                const documentBody = document.getElementById('document-body');
-                if (documentBody) {
-                    documentBody.focus();
+                document.getElementById('document-body').focus();
+            });
+        });
+    }
+
+    /**
+     * Toggle AI Tools dropdown
+     */
+    function toggleAIDropdown() {
+        const dropdown = document.getElementById('ai-dropdown');
+        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+    }
+
+    /**
+     * Show PDF Knowledge Tree Window
+     */
+    function showPdfKnowledgeWindow() {
+        // Hide dropdown
+        document.getElementById('ai-dropdown').style.display = 'none';
+        
+        // Create window
+        const pdfKnowledgeWindow = document.getElementById('pdf-knowledge-window').cloneNode(true);
+        pdfKnowledgeWindow.id = 'active-pdf-knowledge';
+        pdfKnowledgeWindow.style.display = 'block';
+        
+        // Insert window into document
+        window.utils.insertWindowAtCursor(pdfKnowledgeWindow);
+        
+        // Initialize window events
+        initializePdfKnowledgeWindow(pdfKnowledgeWindow);
+    }
+
+    /**
+     * Show Clipboard Copilot Window
+     */
+    function showClipboardCopilotWindow() {
+        // Hide dropdown
+        document.getElementById('ai-dropdown').style.display = 'none';
+        
+        // Create window
+        const clipboardWindow = document.getElementById('clipboard-copilot-window').cloneNode(true);
+        clipboardWindow.id = 'active-clipboard-copilot';
+        clipboardWindow.style.display = 'block';
+        
+        // Insert window into document
+        window.utils.insertWindowAtCursor(clipboardWindow);
+        
+        // Initialize window events
+        initializeClipboardCopilotWindow(clipboardWindow);
+    }
+
+    /**
+     * Show Notes Tree Generator Window
+     */
+    function showNotesTreeWindow() {
+        // Hide dropdown
+        document.getElementById('ai-dropdown').style.display = 'none';
+        
+        // Create window
+        const notesTreeWindow = document.getElementById('notes-tree-window').cloneNode(true);
+        notesTreeWindow.id = 'active-notes-tree';
+        notesTreeWindow.style.display = 'block';
+        
+        // Insert window into document
+        window.utils.insertWindowAtCursor(notesTreeWindow);
+        
+        // Initialize window events
+        initializeNotesTreeWindow(notesTreeWindow);
+    }
+
+    /**
+     * Initialize PDF Knowledge Tree Window
+     * @param {HTMLElement} windowElement - The window element
+     */
+    function initializePdfKnowledgeWindow(windowElement) {
+        // Reset uploaded files
+        app.uploadedFiles = [];
+        
+        // Drag handle
+        const dragHandle = windowElement.querySelector('.window-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', function(e) {
+                handleDragStart(e, windowElement);
+            });
+        }
+        
+        // File upload
+        const fileUpload = windowElement.querySelector('input[type="file"]');
+        const dropZone = windowElement.querySelector('#drop-zone');
+        
+        if (fileUpload) {
+            fileUpload.addEventListener('change', function(e) {
+                window.pdfProcessor.handleFiles(Array.from(this.files), windowElement);
+            });
+        }
+        
+        if (dropZone) {
+            // Drag and drop events
+            dropZone.addEventListener('dragover', function(e) {
+                e.preventDefault();
+                this.classList.add('drag-over');
+            });
+            
+            dropZone.addEventListener('dragleave', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+            });
+            
+            dropZone.addEventListener('drop', function(e) {
+                e.preventDefault();
+                this.classList.remove('drag-over');
+                window.pdfProcessor.handleFiles(Array.from(e.dataTransfer.files), windowElement);
+            });
+        }
+        
+        // Close button
+        const closeBtn = windowElement.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                windowElement.remove();
+            });
+        }
+        
+        // Generate button
+        const generateBtn = windowElement.querySelector('#generate-tree-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                if (this.classList.contains('disabled')) return;
+                window.pdfProcessor.generateKnowledgeTree(windowElement);
+            });
+        }
+        
+        // Model selection
+        const modelSelectBtn = windowElement.querySelector('#model-select-btn');
+        if (modelSelectBtn) {
+            modelSelectBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleDropdownPanelInline(windowElement, '.model-dropdown');
+            });
+        }
+        
+        // Model options
+        const modelOptions = windowElement.querySelectorAll('.model-option');
+        modelOptions.forEach(option => {
+            option.addEventListener('click', function() {
+                // Update app state
+                app.selectedModel = this.getAttribute('data-model');
+                
+                // Update UI
+                windowElement.querySelectorAll('.model-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                this.classList.add('selected');
+                
+                // Update button text
+                windowElement.querySelector('#model-select-btn').textContent = 
+                    this.textContent + ' ▼';
+                
+                // Hide dropdown
+                windowElement.querySelector('.model-dropdown').style.display = 'none';
+                
+                console.log("Selected model:", app.selectedModel);
+            });
+        });
+        
+        // Other buttons
+        const manageFilesBtn = windowElement.querySelector('#manage-files-btn');
+        if (manageFilesBtn) {
+            manageFilesBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleDropdownPanelInline(windowElement, '.files-dropdown');
+            });
+        }
+        
+        const customizeStructureBtn = windowElement.querySelector('#customize-structure-btn');
+        if (customizeStructureBtn) {
+            customizeStructureBtn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                toggleDropdownPanelInline(windowElement, '.structure-dropdown');
+            });
+        }
+    }
+
+    /**
+     * Initialize Clipboard Copilot Window
+     * @param {HTMLElement} windowElement - The window element
+     */
+    function initializeClipboardCopilotWindow(windowElement) {
+        // Drag handle
+        const dragHandle = windowElement.querySelector('.window-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', function(e) {
+                handleDragStart(e, windowElement);
+            });
+        }
+        
+        // Close button
+        const closeBtn = windowElement.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                // Stop monitoring if active
+                if (app.clipboardMonitorActive) {
+                    window.clipboardMonitor.stopMonitoring();
+                    app.clipboardMonitorActive = false;
+                }
+                windowElement.remove();
+            });
+        }
+        
+        // Start/Stop monitoring button
+        const monitoringBtn = windowElement.querySelector('#start-monitoring-btn');
+        if (monitoringBtn) {
+            monitoringBtn.addEventListener('click', function() {
+                if (!app.clipboardMonitorActive) {
+                    // Start monitoring
+                    window.clipboardMonitor.startMonitoring(windowElement);
+                    app.clipboardMonitorActive = true;
+                    
+                    // Update button
+                    this.textContent = 'Stop Monitoring';
+                    this.classList.add('monitoring');
+                    
+                    // Update status
+                    const statusElement = windowElement.querySelector('.clipboard-status');
+                    statusElement.innerHTML = '<p>Clipboard monitoring is active. Copy text from anywhere to process it.</p>';
+                    statusElement.classList.remove('inactive');
+                    statusElement.classList.add('active');
+                } else {
+                    // Stop monitoring
+                    window.clipboardMonitor.stopMonitoring();
+                    app.clipboardMonitorActive = false;
+                    
+                    // Update button
+                    this.textContent = 'Start Monitoring';
+                    this.classList.remove('monitoring');
+                    
+                    // Update status
+                    const statusElement = windowElement.querySelector('.clipboard-status');
+                    statusElement.innerHTML = '<p>Clipboard monitoring is inactive. Click "Start Monitoring" to begin capturing copied text.</p>';
+                    statusElement.classList.remove('active');
+                    statusElement.classList.add('inactive');
+                }
+            });
+        }
+        
+        // Processing option buttons
+        const processButtons = windowElement.querySelectorAll('.process-btn');
+        processButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const action = this.getAttribute('data-action');
+                const textElement = windowElement.querySelector('#captured-text');
+                const text = textElement ? textElement.textContent : '';
+                
+                if (text.trim()) {
+                    window.textProcessor.processText(text, action, windowElement);
                 }
             });
         });
         
-        // Check for formatting and update button states on selection change
-        document.addEventListener('selectionchange', updateFormatButtonStates);
-    }
-    
-    /**
-     * Update formatting tool button states based on current selection
-     */
-    function updateFormatButtonStates() {
-        const selection = window.getSelection();
-        if (selection.rangeCount === 0) return;
-        
-        const formatButtons = document.querySelectorAll('.tool-button');
-        
-        formatButtons.forEach(button => {
-            const title = button.getAttribute('title');
-            
-            // Check if format is active
-            if (title === 'Bold' && document.queryCommandState('bold')) {
-                button.classList.add('active');
-            } else if (title === 'Bold') {
-                button.classList.remove('active');
-            }
-            
-            if (title === 'Italic' && document.queryCommandState('italic')) {
-                button.classList.add('active');
-            } else if (title === 'Italic') {
-                button.classList.remove('active');
-            }
-            
-            if (title === 'Underline' && document.queryCommandState('underline')) {
-                button.classList.add('active');
-            } else if (title === 'Underline') {
-                button.classList.remove('active');
-            }
-        });
-    }
-    
-    /**
-     * Apply heading format to selected text
-     * @param {string} headingType - h1, h2, or h3
-     */
-    function applyHeadingFormat(headingType) {
-        const selection = window.getSelection();
-        
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            const selectedText = range.toString();
-            
-            if (selectedText) {
-                // Create new heading element
-                const heading = document.createElement(headingType);
-                heading.textContent = selectedText;
+        // Custom processing button
+        const customProcessBtn = windowElement.querySelector('#custom-process-btn');
+        if (customProcessBtn) {
+            customProcessBtn.addEventListener('click', function() {
+                const customPrompt = windowElement.querySelector('#custom-prompt').value;
+                const textElement = windowElement.querySelector('#captured-text');
+                const text = textElement ? textElement.textContent : '';
                 
-                // Replace selected text with heading
-                range.deleteContents();
-                range.insertNode(heading);
-                
-                // Move cursor to end of heading
-                const newRange = document.createRange();
-                newRange.setStartAfter(heading);
-                newRange.collapse(true);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
-            }
+                if (text.trim() && customPrompt.trim()) {
+                    window.textProcessor.processTextWithCustomPrompt(text, customPrompt, windowElement);
+                }
+            });
         }
     }
-    
-    /**
-     * Insert a todo list item
-     */
-    function insertTodoList() {
-        const selection = window.getSelection();
-        
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            
-            // Create todo item
-            const todoItem = document.createElement('div');
-            todoItem.className = 'todo-item';
-            todoItem.innerHTML = '<input type="checkbox"> <span contenteditable="true">Todo item</span>';
-            
-            // Insert todo item
-            range.deleteContents();
-            range.insertNode(todoItem);
-            
-            // Add event listener for checkbox
-            const checkbox = todoItem.querySelector('input[type="checkbox"]');
-            if (checkbox) {
-                checkbox.addEventListener('change', function() {
-                    const span = this.nextElementSibling;
-                    if (this.checked) {
-                        span.style.textDecoration = 'line-through';
-                        span.style.opacity = '0.7';
-                    } else {
-                        span.style.textDecoration = 'none';
-                        span.style.opacity = '1';
-                    }
-                    
-                    // Save document
-                    saveCurrentDocument();
-                });
-            }
-            
-            // Focus on the editable span
-            const span = todoItem.querySelector('span');
-            if (span) {
-                span.focus();
-                
-                // Select all text in the span
-                const textRange = document.createRange();
-                textRange.selectNodeContents(span);
-                selection.removeAllRanges();
-                selection.addRange(textRange);
-            }
-        }
-    }
-    
-    // Return public methods and properties
-    return {
-        initialize,
-        saveCurrentDocument,
-        toggleSidebar,
-        getSelectedText,
-        createDefaultDocument,
-        isInitialized: () => isInitialized
-    };
-})();
 
-// Initialize the application when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
-    WebNotebook.App.initialize();
+    /**
+     * Initialize Notes Tree Window
+     * @param {HTMLElement} windowElement - The window element
+     */
+    function initializeNotesTreeWindow(windowElement) {
+        // Reset notes array
+        app.notesArray = [];
+        
+        // Drag handle
+        const dragHandle = windowElement.querySelector('.window-drag-handle');
+        if (dragHandle) {
+            dragHandle.addEventListener('mousedown', function(e) {
+                handleDragStart(e, windowElement);
+            });
+        }
+        
+        // Close button
+        const closeBtn = windowElement.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                windowElement.remove();
+            });
+        }
+        
+        // Add note button
+        const addNoteBtn = windowElement.querySelector('#add-note-btn');
+        if (addNoteBtn) {
+            addNoteBtn.addEventListener('click', function() {
+                const textarea = windowElement.querySelector('#notes-textarea');
+                window.treeGenerator.addNoteFromTextarea(textarea, windowElement);
+            });
+        }
+        
+        // Clear notes button
+        const clearNotesBtn = windowElement.querySelector('#clear-notes-btn');
+        if (clearNotesBtn) {
+            clearNotesBtn.addEventListener('click', function() {
+                window.treeGenerator.clearNotes(windowElement);
+            });
+        }
+        
+        // Enter key in textarea adds the note
+        const notesTextarea = windowElement.querySelector('#notes-textarea');
+        if (notesTextarea) {
+            notesTextarea.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault();
+                    window.treeGenerator.addNoteFromTextarea(this, windowElement);
+                }
+            });
+            
+            // Initialize with example notes if empty
+            if (!notesTextarea.value) {
+                notesTextarea.value = `Reinforcement Learning uses rewards to train agents
+Supervised learning requires labeled data
+Transformers are used in large language models
+Activation functions introduce non-linearity
+Backpropagation is used to train neural networks`;
+            }
+        }
+        
+        // Generate tree button
+        const generateBtn = windowElement.querySelector('#generate-notes-tree-btn');
+        if (generateBtn) {
+            generateBtn.addEventListener('click', function() {
+                window.treeGenerator.generateKnowledgeTree(windowElement, app.selectedModel);
+            });
+        }
+    }
+
+    /**
+     * Toggle dropdown panel in inline window
+     * @param {HTMLElement} windowElement - Window element
+     * @param {string} selector - Selector for dropdown panel
+     */
+    function toggleDropdownPanelInline(windowElement, selector) {
+        const panel = windowElement.querySelector(selector);
+        
+        // Close all other dropdowns in this window
+        windowElement.querySelectorAll('.dropdown-panel').forEach(p => {
+            if (p !== panel) p.style.display = 'none';
+        });
+        
+        // Toggle this dropdown
+        panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    }
+
+    /**
+     * Toggle more options panel
+     * @param {HTMLElement} container - Container element
+     */
+    function toggleMoreOptionsPanel(container) {
+        const optionsPanel = container.querySelector('.more-options-panel');
+        if (optionsPanel) {
+            optionsPanel.style.display = optionsPanel.style.display === 'none' ? 'block' : 'none';
+        }
+    }
+
+    /**
+     * Handle drag start for draggable windows
+     * @param {Event} e - Mouse event
+     * @param {HTMLElement} element - Element to drag
+     */
+    function handleDragStart(e, element) {
+        // Only handle left mouse button
+        if (e.button !== 0) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Get starting position
+        app.startY = e.clientY;
+        
+        // Set dragging state
+        app.isDragging = true;
+        app.currentDragTarget = element;
+        element.classList.add('dragging');
+        
+        // Create a placeholder for drop targets
+        createDragPlaceholder(element);
+        
+        // Calculate possible drop locations
+        updateDropTargets(e.clientY);
+    }
+    
+    /**
+     * Create drag placeholder
+     * @param {HTMLElement} element - Element being dragged
+     */
+    function createDragPlaceholder(element) {
+        // Remove existing placeholder if any
+        if (app.dragPlaceholder) {
+            app.dragPlaceholder.remove();
+        }
+        
+        // Clone element dimensions but make it a placeholder
+        app.dragPlaceholder = document.createElement('div');
+        app.dragPlaceholder.className = 'drag-placeholder';
+        app.dragPlaceholder.style.height = element.offsetHeight + 'px';
+        app.dragPlaceholder.style.opacity = '0.2';
+        
+        // Insert after the element
+        if (element.nextSibling) {
+            element.parentNode.insertBefore(app.dragPlaceholder, element.nextSibling);
+        } else {
+            element.parentNode.appendChild(app.dragPlaceholder);
+        }
+        
+        // Hide it initially
+        app.dragPlaceholder.style.display = 'none';
+    }
+    
+    /**
+     * Update drop targets based on cursor position
+     * @param {number} clientY - Cursor Y position
+     */
+    function updateDropTargets(clientY) {
+        const docBody = document.getElementById('document-body');
+        const bodyRect = docBody.getBoundingClientRect();
+        
+        // Convert client coordinates to document body coordinates
+        const relativeY = clientY - bodyRect.top;
+        
+        // Get all direct children of the document body
+        const children = Array.from(docBody.children);
+        
+        // Skip the current drag target in our calculations
+        const filteredChildren = children.filter(child => 
+            child !== app.currentDragTarget && 
+            child !== app.dragPlaceholder
+        );
+        
+        // No children or only the current drag target
+        if (filteredChildren.length === 0) {
+            // Just place at the beginning or end
+            if (relativeY < bodyRect.height / 2) {
+                app.dropTarget = { element: null, position: 'start' };
+            } else {
+                app.dropTarget = { element: null, position: 'end' };
+            }
+            return;
+        }
+        
+        // Find the closest element to the cursor
+        for (let i = 0; i < filteredChildren.length; i++) {
+            const child = filteredChildren[i];
+            const childRect = child.getBoundingClientRect();
+            const childMiddle = childRect.top + childRect.height / 2 - bodyRect.top;
+            
+            if (relativeY < childMiddle) {
+                // Place before this child
+                app.dropTarget = { element: child, position: 'before' };
+                return;
+            }
+        }
+        
+        // If we get here, place after the last child
+        app.dropTarget = { element: filteredChildren[filteredChildren.length - 1], position: 'after' };
+    }
+    
+    /**
+     * Handle drag move
+     * @param {Event} e - Mouse event
+     */
+    function handleDragMove(e) {
+        if (!app.isDragging || !app.currentDragTarget) return;
+        
+        // If dragging, update drop targets
+        updateDropTargets(e.clientY);
+        
+        // Update drag placeholder position
+        updateDragPlaceholder();
+    }
+    
+    /**
+     * Update drag placeholder position
+     */
+    function updateDragPlaceholder() {
+        if (!app.dragPlaceholder || !app.dropTarget) return;
+        
+        // Show the placeholder
+        app.dragPlaceholder.style.display = 'block';
+        
+        const docBody = document.getElementById('document-body');
+        
+        // Position the placeholder based on drop target
+        if (app.dropTarget.position === 'start') {
+            // At the start of document
+            docBody.insertBefore(app.dragPlaceholder, docBody.firstChild);
+        } else if (app.dropTarget.position === 'end') {
+            // At the end of document
+            docBody.appendChild(app.dragPlaceholder);
+        } else if (app.dropTarget.position === 'before') {
+            // Before the target element
+            docBody.insertBefore(app.dragPlaceholder, app.dropTarget.element);
+        } else if (app.dropTarget.position === 'after') {
+            // After the target element
+            if (app.dropTarget.element.nextSibling) {
+                docBody.insertBefore(app.dragPlaceholder, app.dropTarget.element.nextSibling);
+            } else {
+                docBody.appendChild(app.dragPlaceholder);
+            }
+        }
+    }
+    
+    /**
+     * Handle drag end
+     * @param {Event} e - Mouse event
+     */
+    function handleDragEnd(e) {
+        if (!app.isDragging) return;
+        
+        app.isDragging = false;
+        
+        if (app.currentDragTarget) {
+            app.currentDragTarget.classList.remove('dragging');
+            
+            // Move the element to the drop location
+            moveElementToDropLocation();
+            
+            // Reset
+            app.currentDragTarget = null;
+        }
+        
+        // Remove placeholder
+        if (app.dragPlaceholder) {
+            app.dragPlaceholder.remove();
+            app.dragPlaceholder = null;
+        }
+        
+        app.dropTarget = null;
+    }
+    
+    /**
+     * Move element to drop location
+     */
+    function moveElementToDropLocation() {
+        if (!app.currentDragTarget || !app.dropTarget) return;
+        
+        const docBody = document.getElementById('document-body');
+        
+        // Temporarily remove the element
+        app.currentDragTarget.remove();
+        
+        // Place it in the new location
+        if (app.dropTarget.position === 'start') {
+            docBody.insertBefore(app.currentDragTarget, docBody.firstChild);
+        } else if (app.dropTarget.position === 'end') {
+            docBody.appendChild(app.currentDragTarget);
+        } else if (app.dropTarget.position === 'before') {
+            docBody.insertBefore(app.currentDragTarget, app.dropTarget.element);
+        } else if (app.dropTarget.position === 'after') {
+            if (app.dropTarget.element.nextSibling) {
+                docBody.insertBefore(app.currentDragTarget, app.dropTarget.element.nextSibling);
+            } else {
+                docBody.appendChild(app.currentDragTarget);
+            }
+        }
+    }
+    
+    /**
+     * Load saved data from storage
+     */
+    function loadSavedData() {
+        // Load saved document if exists
+        try {
+            const savedDocument = window.storage.getItem('webNotebookDocument');
+            if (savedDocument) {
+                // Verify it's a valid document object before using it
+                if (typeof savedDocument === 'object' && 
+                    savedDocument !== null && 
+                    savedDocument.title && 
+                    savedDocument.content) {
+                    
+                    document.getElementById('document-title').textContent = savedDocument.title;
+                    document.getElementById('document-body').innerHTML = savedDocument.content;
+                    updateBreadcrumb();
+                } else {
+                    // If data doesn't look right, remove it
+                    console.warn('Invalid document data found, removing it');
+                    window.storage.removeItem('webNotebookDocument');
+                }
+            }
+        } catch (e) {
+            console.error('Error loading saved document:', e);
+            // Remove potentially corrupted data
+            window.storage.removeItem('webNotebookDocument');
+        }
+        
+        // Load saved road map if exists
+        try {
+            const savedRoadMap = window.storage.getItem('webNotebookRoadMap');
+            if (savedRoadMap && Array.isArray(savedRoadMap)) {
+                // Initialize road map with data
+                window.textProcessor.initializeRoadMap(savedRoadMap);
+            }
+        } catch (e) {
+            console.error('Error loading saved road map:', e);
+            // Remove potentially corrupted data
+            window.storage.removeItem('webNotebookRoadMap');
+        }
+    }
 });

@@ -29,62 +29,24 @@ A comprehensive web-based learning and knowledge management application featurin
 
 ## Project Structure
 
-```
 WebNotebook/
-├── index.html             # Main entry point
-├── styles/                # CSS files
-│   ├── main.css           # Main styling
-│   ├── interface.css      # File management styles
-│   ├── knowledge-tree.css # Tree visualization styles
-│   ├── copilot.css        # AI copilot styles
-│   ├── ai-window.css      # AI window styles
-│   └── themes.css         # Theme customization
-├── js/                    # JavaScript files
-│   ├── app.js             # Application initialization
-│   ├── interface/         # File management modules
-│   ├── copilot/           # AI copilot modules
-│   ├── knowledge-tree/    # Knowledge tree modules
-│   └── utils/             # Utility functions
-└── assets/                # Static assets
-    ├── icons/             # UI icons
-    ├── templates/         # HTML templates
-    └── examples/          # Example files
-```
---------------
-
-WebNotebook/
-├── index.html             # Main entry point
-├── styles/
-│   ├── main.css           # Main styling
-│   ├── interface.css      # File management interface styles
-│   ├── knowledge-tree.css # Knowledge tree visualization styles
-│   ├── copilot.css        # AI copilot styles
-│   └── themes.css         # Theme customization
+├── index.html                # Main entry point
+├── css/                      # CSS files
+│   ├── main.css              # Core styling
+│   ├── knowledge-tree.css    # Knowledge tree visualization styling
+│   ├── pdf-processor.css     # PDF processor styling
+│   ├── clipboard.css         # Clipboard monitor styling
 ├── js/
-│   ├── app.js             # Application initialization
-│   ├── interface/
-│   │   ├── fileManager.js        # File/node management
-│   │   ├── viewModes.js          # Icon/Tree view switching
-│   │   ├── contextMenu.js        # Right-click menu
-│   │   ├── dragDrop.js           # Drag and drop functionality
-│   │   └── roadmapTracker.js     # Learning roadmap progression
-│   ├── copilot/
-│   │   ├── clipboardMonitor.js   # Clipboard monitoring
-│   │   ├── aiProcessor.js        # AI processing of content
-│   │   ├── promptManager.js      # AI prompt management
-│   │   └── historyTracker.js     # Content history logging
-│   ├── knowledge-tree/
-│   │   ├── treeEditor.js         # Tree creation and editing
-│   │   ├── nodeTypes.js          # Node type definitions
-│   │   ├── aiOrganizer.js        # AI suggestions for organization
-│   │   ├── visualizer.js         # Tree visualization
-│   │   └── exportManager.js      # Export functionality
-│   └── utils/
-│       ├── storage.js            # Local storage management
-│       ├── search.js             # Search functionality
-│       ├── pdfProcessor.js       # PDF handling
-│       └── apiService.js         # API communication
-└── assets/
-    ├── icons/                   # UI icons
-    ├── templates/               # HTML templates
-    └── examples/                # Example files
+│   ├── app.js                # Main application initialization
+│   ├── utils.js              # Utility functions
+│   ├── storage.js            # Local storage management
+│   ├── knowledge-tools/
+│   │   ├── knowledge-api.js  # API calls for AI processing
+│   │   ├── tree-generator.js # Knowledge tree generation from notes
+│   │   ├── tree-visualizer.js # Tree visualization with D3.js
+│   ├── pdf-tools/
+│   │   ├── pdf-parser.js     # PDF extraction and parsing
+│   │   ├── pdf-processor.js  # PDF to knowledge tree processing
+│   ├── clipboard-tools/
+│   │   ├── clipboard-monitor.js # Clipboard monitoring
+│   │   ├── text-processor.js    # Processing clipboard text

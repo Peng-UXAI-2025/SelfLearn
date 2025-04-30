@@ -531,7 +531,7 @@
     function createKnowledgeItem(item) {
         const itemElement = document.createElement('div');
         itemElement.className = 'knowledge-item';
-        itemElement.dataset.itemId = item.id;  // Add this line to set the data attribute
+        itemElement.dataset.itemId = item.id;
         
         // Set status class
         let statusClass = 'status-not-started';
@@ -552,12 +552,19 @@
                 <p class="knowledge-subtitle">${item.subtitle || ''}</p>
                 <div class="knowledge-meta">
                     <span>Updated ${formattedDate}</span>
+                    <button class="view-notes-btn">View Notes</button>
                 </div>
             </div>
         `;
         
         // Add click event to open knowledge item
-        itemElement.addEventListener('click', () => {
+        itemElement.addEventListener('click', function(e) {
+            // Prevent triggering if the notes button was clicked
+            if (e.target.classList.contains('view-notes-btn')) {
+                e.stopPropagation();
+                return;
+            }
+            
             if (window.knowledgeTree && typeof window.knowledgeTree.openKnowledgeItem === 'function') {
                 window.knowledgeTree.openKnowledgeItem(item.id);
             } else {
@@ -565,6 +572,15 @@
                 openKnowledgeItem(item.id);
             }
         });
+        
+        // Add view notes button functionality
+        const viewNotesBtn = itemElement.querySelector('.view-notes-btn');
+        if (viewNotesBtn) {
+            viewNotesBtn.addEventListener('click', function(e) {
+                e.stopPropagation(); // Prevent parent click event
+                openNotesPage(item);
+            });
+        }
         
         return itemElement;
     }
@@ -958,6 +974,400 @@
     }
     
     /**
+     * Open notes page for a knowledge item
+     * @param {Object} item - Knowledge item data
+     */
+    function openNotesPage(item) {
+        if (!currentSpace) return;
+        
+        // Create the notes page
+        const notesPage = document.createElement('div');
+        notesPage.className = 'knowledge-content-page notes-page';
+        
+        // Add breadcrumb
+        const breadcrumb = document.createElement('div');
+        breadcrumb.className = 'breadcrumb-nav';
+        breadcrumb.innerHTML = `
+            <a href="#" class="to-dashboard">Dashboard</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="#" class="to-space">${currentSpace.name}</a>
+            <span class="breadcrumb-separator">/</span>
+            <a href="#" class="to-item">${item.title}</a>
+            <span class="breadcrumb-separator">/</span>
+            <span>Notes</span>
+        `;
+        
+        // Add breadcrumb click handlers
+        breadcrumb.querySelector('.to-dashboard').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.studySpaces.showWelcomeDashboard();
+        });
+        
+        breadcrumb.querySelector('.to-space').addEventListener('click', function(e) {
+            e.preventDefault();
+            window.studySpaces.openStudySpace(currentSpace.id);
+        });
+        
+        breadcrumb.querySelector('.to-item').addEventListener('click', function(e) {
+            e.preventDefault();
+            if (window.knowledgeTree && typeof window.knowledgeTree.openKnowledgeItem === 'function') {
+                window.knowledgeTree.openKnowledgeItem(item.id);
+            } else {
+                openKnowledgeItem(item.id);
+            }
+        });
+        
+        notesPage.appendChild(breadcrumb);
+        
+        // Create header
+        const header = document.createElement('div');
+        header.className = 'content-header';
+        
+        header.innerHTML = `
+            <div class="content-title">
+                <h1>Notes for: ${item.title}</h1>
+                <p class="content-subtitle">${item.subtitle || ''}</p>
+            </div>
+            <div class="content-actions">
+                <button class="back-to-item-btn">Back to Item</button>
+            </div>
+        `;
+        
+        // Add back button handler
+        header.querySelector('.back-to-item-btn').addEventListener('click', function() {
+            if (window.knowledgeTree && typeof window.knowledgeTree.openKnowledgeItem === 'function') {
+                window.knowledgeTree.openKnowledgeItem(item.id);
+            } else {
+                openKnowledgeItem(item.id);
+            }
+        });
+        
+        notesPage.appendChild(header);
+        
+        // Create notes section
+        const notesSection = document.createElement('div');
+        notesSection.className = 'notes-section';
+        
+        // Create notes editor
+        const notesEditor = document.createElement('div');
+        notesEditor.className = 'notes-editor';
+        
+        notesEditor.innerHTML = `
+            <div class="form-group">
+                <label for="new-note">Add New Note</label>
+                <textarea id="new-note" placeholder="Enter your note here..."></textarea>
+                <button id="add-note-btn" class="btn btn-primary">Add Note</button>
+            </div>
+        `;
+        
+        // Add note button handler
+        notesEditor.querySelector('#add-note-btn').addEventListener('click', function() {
+            const noteText = notesEditor.querySelector('#new-note').value;
+            
+            if (noteText.trim()) {
+                // Add the note
+                addItemNote(item.id, noteText);
+                
+                // Clear input
+                notesEditor.querySelector('#new-note').value = '';
+                
+                // Refresh notes list
+                loadItemNotesToPage(item.id, notesDisplay);
+            }
+        });
+        
+        notesSection.appendChild(notesEditor);
+        
+        // Create notes display area
+        const notesDisplay = document.createElement('div');
+        notesDisplay.className = 'notes-display';
+        
+        notesDisplay.innerHTML = `
+            <h2 id="notes-list-header">Your Notes</h2>
+            <div id="notes-list" class="notes-list">
+                <!-- Notes will be loaded here -->
+            </div>
+        `;
+        
+        notesSection.appendChild(notesDisplay);
+        notesPage.appendChild(notesSection);
+        
+        // Load notes
+        loadItemNotesToPage(item.id, notesDisplay);
+        
+        // Replace current content
+        const contentArea = document.querySelector('.content');
+        contentArea.innerHTML = '';
+        contentArea.appendChild(notesPage);
+        
+        // Update document title
+        document.title = `Notes for ${item.title} - SelfLearn`;
+        document.getElementById('document-title').textContent = `Notes: ${item.title}`;
+        
+        // Update breadcrumb in header
+        updateBreadcrumb(`${currentSpace.name} / ${item.title} / Notes`);
+    }
+    
+    /**
+     * Load notes to the notes page
+     * @param {string} itemId - Item ID
+     * @param {HTMLElement} container - Container for notes
+     */
+    function loadItemNotesToPage(itemId, container) {
+        const notesList = container.querySelector('#notes-list');
+        const notesHeader = container.querySelector('#notes-list-header');
+        
+        // Get notes from storage
+        const notes = getItemNotes(itemId);
+        
+        // Update header
+        if (notes.length === 0) {
+            notesHeader.textContent = 'No notes yet';
+            notesList.innerHTML = '<p class="empty-notes-message">Add a note to get started.</p>';
+            return;
+        }
+        
+        notesHeader.textContent = `Your Notes (${notes.length})`;
+        notesList.innerHTML = '';
+        
+        // Add notes to list
+        notes.forEach(note => {
+            const noteElement = createNoteElement(note, itemId);
+            notesList.appendChild(noteElement);
+        });
+    }
+    
+    /**
+     * Get notes for a knowledge item
+     * @param {string} itemId - Item ID
+     * @returns {Array} - Notes array
+     */
+    function getItemNotes(itemId) {
+        const notesKey = `itemNotes_${itemId}`;
+        return window.storage.getItem(notesKey) || [];
+    }
+    
+    /**
+     * Add note to knowledge item
+     * @param {string} itemId - Item ID
+     * @param {string} noteText - Note text
+     */
+    function addItemNote(itemId, noteText) {
+        // Create note object
+        const newNote = {
+            id: window.utils.generateUniqueId(),
+            text: noteText.trim(),
+            createdAt: new Date().toISOString()
+        };
+        
+        // Get existing notes
+        const notes = getItemNotes(itemId);
+        
+        // Add new note at the beginning
+        notes.unshift(newNote);
+        
+        // Save to storage
+        const notesKey = `itemNotes_${itemId}`;
+        window.storage.setItem(notesKey, notes);
+        
+        return newNote;
+    }
+    
+    /**
+     * Create note element
+     * @param {Object} note - Note data
+     * @param {string} itemId - Item ID
+     * @returns {HTMLElement} - Note element
+     */
+    function createNoteElement(note, itemId) {
+        const noteElement = document.createElement('div');
+        noteElement.className = 'note-item';
+        noteElement.dataset.noteId = note.id;
+        
+        // Format date
+        const createdDate = new Date(note.createdAt);
+        const formattedDate = window.utils.formatDate(createdDate);
+        
+        noteElement.innerHTML = `
+            <div class="note-text">${formatNoteText(note.text)}</div>
+            <div class="note-meta">
+                <span class="note-date">${formattedDate}</span>
+                <div class="note-actions">
+                    <button class="edit-note-btn" title="Edit Note">✎</button>
+                    <button class="delete-note-btn" title="Delete Note">×</button>
+                </div>
+            </div>
+        `;
+        
+        // Add edit button handler
+        noteElement.querySelector('.edit-note-btn').addEventListener('click', function() {
+            editItemNote(itemId, note, noteElement);
+        });
+        
+        // Add delete button handler
+        noteElement.querySelector('.delete-note-btn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to delete this note?')) {
+                // Delete the note
+                deleteItemNote(itemId, note.id);
+                
+                // Remove element from DOM
+                noteElement.remove();
+                
+                // Update header if no notes left
+                const notesDisplay = noteElement.closest('.notes-display');
+                if (notesDisplay) {
+                    const notesList = notesDisplay.querySelector('#notes-list');
+                    const notesHeader = notesDisplay.querySelector('#notes-list-header');
+                    
+                    if (!notesList.children.length || (notesList.children.length === 1 && notesList.querySelector('.empty-notes-message'))) {
+                        notesHeader.textContent = 'No notes yet';
+                        notesList.innerHTML = '<p class="empty-notes-message">Add a note to get started.</p>';
+                    } else {
+                        notesHeader.textContent = `Your Notes (${notesList.children.length})`;
+                    }
+                }
+            }
+        });
+        
+        return noteElement;
+    }
+    
+    /**
+     * Edit an existing note
+     * @param {string} itemId - Item ID
+     * @param {Object} note - Note object
+     * @param {HTMLElement} noteElement - Note element
+     */
+    function editItemNote(itemId, note, noteElement) {
+        // Replace note content with editor
+        const noteContent = noteElement.querySelector('.note-text').innerHTML;
+        const originalText = note.text;
+        
+        // Create editor
+        const editorContainer = document.createElement('div');
+        editorContainer.className = 'note-editor';
+        
+        editorContainer.innerHTML = `
+            <textarea class="edit-note-textarea">${originalText}</textarea>
+            <div class="edit-note-actions">
+                <button class="save-edit-btn">Save</button>
+                <button class="cancel-edit-btn">Cancel</button>
+            </div>
+        `;
+        
+        // Replace note text with editor
+        noteElement.querySelector('.note-text').innerHTML = '';
+        noteElement.querySelector('.note-text').appendChild(editorContainer);
+        
+        // Hide note actions while editing
+        noteElement.querySelector('.note-actions').style.display = 'none';
+        
+        // Focus textarea
+        const textarea = editorContainer.querySelector('textarea');
+        textarea.focus();
+        
+        // Save button handler
+        editorContainer.querySelector('.save-edit-btn').addEventListener('click', function() {
+            const newText = textarea.value.trim();
+            
+            if (newText) {
+                // Update note in storage
+                updateItemNote(itemId, note.id, newText);
+                
+                // Update display
+                noteElement.querySelector('.note-text').innerHTML = formatNoteText(newText);
+                
+                // Show note actions again
+                noteElement.querySelector('.note-actions').style.display = '';
+            }
+        });
+        
+        // Cancel button handler
+        editorContainer.querySelector('.cancel-edit-btn').addEventListener('click', function() {
+            // Revert to original text
+            noteElement.querySelector('.note-text').innerHTML = noteContent;
+            
+            // Show note actions again
+            noteElement.querySelector('.note-actions').style.display = '';
+        });
+    }
+    
+    /**
+     * Update an existing note
+     * @param {string} itemId - Item ID
+     * @param {string} noteId - Note ID
+     * @param {string} newText - New note text
+     */
+    function updateItemNote(itemId, noteId, newText) {
+        // Get notes
+        const notes = getItemNotes(itemId);
+        
+        // Find and update note
+        const noteIndex = notes.findIndex(note => note.id === noteId);
+        
+        if (noteIndex !== -1) {
+            notes[noteIndex].text = newText;
+            notes[noteIndex].updatedAt = new Date().toISOString();
+            
+            // Save back to storage
+            const notesKey = `itemNotes_${itemId}`;
+            window.storage.setItem(notesKey, notes);
+            
+            return true;
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Format note text (handle line breaks, URLs, etc.)
+     * @param {string} text - Note text
+     * @returns {string} - Formatted HTML
+     */
+    function formatNoteText(text) {
+        if (!text) return '';
+        
+        // Escape HTML
+        let safeText = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+        
+        // Convert URLs to links
+        safeText = safeText.replace(
+            /(https?:\/\/[^\s]+)/g, 
+            '<a href="$1" target="_blank">$1</a>'
+        );
+        
+        // Convert line breaks to <br>
+        safeText = safeText.replace(/\n/g, '<br>');
+        
+        return safeText;
+    }
+    
+    /**
+     * Delete note from knowledge item
+     * @param {string} itemId - Item ID
+     * @param {string} noteId - Note ID
+     * @returns {boolean} - Success status
+     */
+    function deleteItemNote(itemId, noteId) {
+        // Get existing notes
+        const notes = getItemNotes(itemId);
+        
+        // Filter out the deleted note
+        const updatedNotes = notes.filter(note => note.id !== noteId);
+        
+        // Save to storage
+        const notesKey = `itemNotes_${itemId}`;
+        window.storage.setItem(notesKey, updatedNotes);
+        
+        return true;
+    }
+    
+    /**
      * Update breadcrumb with current location
      * @param {string} spaceName - Optional current space name
      */
@@ -976,50 +1386,20 @@
         }
     }
     
+    // Make the currentSpace variable accessible to knowledge tree module
+    window.studySpaces.getCurrentSpace = function() {
+        return currentSpace;
+    };
+    
+    // Expose functions for knowledge tree navigation
+    window.studySpaces.showAddKnowledgeModal = function(spaceId) {
+        showAddKnowledgeModal(spaceId);
+    };
+    
+    window.studySpaces.showEditKnowledgeModal = function(spaceId, item) {
+        showEditKnowledgeModal(spaceId, item);
+    };
+    
     // Initialize on page load
     document.addEventListener('DOMContentLoaded', window.studySpaces.initialize);
 })();
-
-/**
- * These are the functions that need to be added to your study-spaces.js file.
- * Add these inside the studySpaces module IIFE (immediately-invoked function expression)
- * just before the closing "})();" at the end of the file.
- */
-
-// Make the currentSpace variable accessible to knowledge tree module
-window.studySpaces.getCurrentSpace = function() {
-    return currentSpace;
-};
-
-// Make the currentItem variable accessible to knowledge tree module
-window.studySpaces.getCurrentItem = function() {
-    return currentItem;
-};
-
-// Set current item (used by knowledge tree)
-window.studySpaces.setCurrentItem = function(item) {
-    currentItem = item;
-};
-
-// Expose functions that are referenced in knowledge-tree-nav.js
-// These are just wrappers around existing functions in study-spaces.js
-
-// Expose the showAddKnowledgeModal function
-window.studySpaces.showAddKnowledgeModal = function(spaceId) {
-    showAddKnowledgeModal(spaceId);
-};
-
-// Expose the showAddChildModal function
-window.studySpaces.showAddChildModal = function(spaceId, parentItem) {
-    showAddChildModal(spaceId, parentItem);
-};
-
-// Expose the showEditKnowledgeModal function
-window.studySpaces.showEditKnowledgeModal = function(spaceId, item) {
-    showEditKnowledgeModal(spaceId, item);
-};
-
-// Expose the showGenerateTreeModal function
-window.studySpaces.showGenerateTreeModal = function(spaceId, parentItem) {
-    showGenerateTreeModal(spaceId, parentItem);
-};

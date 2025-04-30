@@ -1022,3 +1022,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }
     }
   });
+
+  
+// Initialize knowledge tree navigation
+if (window.knowledgeTree && typeof window.knowledgeTree.initialize === 'function') {
+    window.knowledgeTree.initialize();
+    console.log("Knowledge tree navigation initialized from app.js");
+}
+
+// Add knowledge tree to the public API
+window.webNotebook.knowledgeTree = window.knowledgeTree;

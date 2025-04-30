@@ -14,8 +14,9 @@
     };
     
     // API keys (in a real app, these would be securely stored)
-    let OPENAI_API_KEY = '';
-    let GEMINI_API_KEY = '';
+    // Initialize with environment variables if available
+    let OPENAI_API_KEY = window.API_KEYS?.openai || '';
+    let GEMINI_API_KEY = window.API_KEYS?.gemini || '';
     
     /**
      * Set API keys
@@ -24,6 +25,8 @@
     window.knowledgeApi.setApiKeys = function(keys) {
         if (keys.openai) OPENAI_API_KEY = keys.openai;
         if (keys.gemini) GEMINI_API_KEY = keys.gemini;
+        console.log('API keys set:', keys.openai ? 'OpenAI key provided' : 'No OpenAI key', 
+                                    keys.gemini ? 'Gemini key provided' : 'No Gemini key');
     };
     
     /**

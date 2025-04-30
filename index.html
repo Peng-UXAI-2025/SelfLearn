@@ -10,6 +10,38 @@
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <script src="https://unpkg.com/mammoth@1.4.21/mammoth.browser.min.js"></script>
 
+    <!-- Environment Variables (API Keys) -->
+    <script src="env.js"></script>
+
+    <script>
+        // Initialization script to check and fix any corrupted data on page load
+        document.addEventListener("DOMContentLoaded", function () {
+          // Check for corrupted webNotebookDocument
+          try {
+            const storageKey = "webNotebook_webNotebookDocument";
+            const docData = localStorage.getItem(storageKey);
+  
+            // Try to parse the data
+            try {
+              JSON.parse(docData);
+            } catch (e) {
+              // If it can't be parsed, remove it
+              console.warn("Found corrupted document data, removing it");
+              localStorage.removeItem(storageKey);
+            }
+          } catch (e) {
+            // Something went wrong with the check itself
+            console.error("Error checking storage:", e);
+          }
+  
+          // Initialize custom events for module communication
+          window.webNotebookEvents = {
+            documentSaved: new Event("webnotebook:document-saved"),
+            treeGenerated: new Event("webnotebook:tree-generated"),
+          };
+        });
+      </script>
+
     <!-- Styling -->
     <link rel="stylesheet" href="css/main.css" />
     <link rel="stylesheet" href="css/knowledge-tree.css" />
@@ -269,36 +301,6 @@ Example:
         <button id="edit-roadmap-btn">Edit Road Map</button>
       </div>
     </div>
-
-    <!-- Script Inclusion Order is Important -->
-    <script>
-      // Initialization script to check and fix any corrupted data on page load
-      document.addEventListener("DOMContentLoaded", function () {
-        // Check for corrupted webNotebookDocument
-        try {
-          const storageKey = "webNotebook_webNotebookDocument";
-          const docData = localStorage.getItem(storageKey);
-
-          // Try to parse the data
-          try {
-            JSON.parse(docData);
-          } catch (e) {
-            // If it can't be parsed, remove it
-            console.warn("Found corrupted document data, removing it");
-            localStorage.removeItem(storageKey);
-          }
-        } catch (e) {
-          // Something went wrong with the check itself
-          console.error("Error checking storage:", e);
-        }
-
-        // Initialize custom events for module communication
-        window.webNotebookEvents = {
-          documentSaved: new Event("webnotebook:document-saved"),
-          treeGenerated: new Event("webnotebook:tree-generated"),
-        };
-      });
-    </script>
 
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>

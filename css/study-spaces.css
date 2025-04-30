@@ -1,0 +1,426 @@
+/* Study Spaces and Welcome Page Styles */
+
+/* Welcome dashboard page */
+.welcome-dashboard {
+    padding: 20px;
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.welcome-header {
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.welcome-header h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+    color: #233749;
+}
+
+.welcome-header p {
+    font-size: 16px;
+    color: #555;
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.study-spaces-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+    margin-top: 30px;
+}
+
+.study-space-card {
+    border-radius: 8px;
+    background-color: white;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+}
+
+.study-space-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 6px 12px rgba(0,0,0,0.15);
+}
+
+.card-cover {
+    height: 140px;
+    background-size: cover;
+    background-position: center;
+}
+
+.front-end-cover {
+    background-image: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+}
+
+.ux-design-cover {
+    background-image: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.back-end-cover {
+    background-image: linear-gradient(135deg, #007adf 0%, #00ecbc 100%);
+}
+
+.card-content {
+    padding: 20px;
+}
+
+.card-content h3 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 18px;
+    color: #233749;
+}
+
+.card-content p {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 15px;
+}
+
+.space-stats {
+    display: flex;
+    justify-content: space-between;
+    color: #777;
+    font-size: 12px;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+
+.create-space-card {
+    border: 2px dashed #ccc;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 30px;
+    border-radius: 8px;
+    transition: border-color 0.2s;
+}
+
+.create-space-card:hover {
+    border-color: #233749;
+}
+
+.create-space-card .add-icon {
+    font-size: 30px;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    color: #233749;
+}
+
+/* Study space page */
+.study-space-page {
+    padding: 30px;
+    max-width: 950px;
+    margin: 0 auto;
+}
+
+.space-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.space-title {
+    display: flex;
+    align-items: center;
+}
+
+.space-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 20px;
+    margin-right: 15px;
+}
+
+.space-icon.front-end {
+    background-image: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+}
+
+.space-icon.ux-design {
+    background-image: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.space-icon.back-end {
+    background-image: linear-gradient(135deg, #007adf 0%, #00ecbc 100%);
+}
+
+.space-name h1 {
+    margin: 0;
+    font-size: 28px;
+    color: #233749;
+}
+
+.space-name p {
+    margin: 5px 0 0 0;
+    font-size: 15px;
+    color: #777;
+}
+
+.space-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.action-btn {
+    padding: 8px 15px;
+    border: none;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    color: #333;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+}
+
+.action-btn.primary {
+    background-color: #233749;
+    color: white;
+}
+
+.action-btn:hover {
+    opacity: 0.9;
+}
+
+.action-btn i {
+    margin-right: 5px;
+}
+
+.knowledge-items {
+    margin-top: 20px;
+}
+
+.section-title {
+    font-size: 16px;
+    color: #555;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.section-title .count {
+    background-color: #eee;
+    color: #555;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.knowledge-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.knowledge-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 15px;
+    border-radius: 6px;
+    background-color: white;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: transform 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+}
+
+.knowledge-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+}
+
+.knowledge-status {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    margin-right: 15px;
+    flex-shrink: 0;
+}
+
+.status-completed {
+    background-color: #2ecc71;
+}
+
+.status-in-progress {
+    background-color: #f39c12;
+}
+
+.status-not-started {
+    background-color: #95a5a6;
+}
+
+.knowledge-content {
+    flex: 1;
+}
+
+.knowledge-title {
+    font-weight: 500;
+    color: #233749;
+    margin: 0 0 3px 0;
+}
+
+.knowledge-subtitle {
+    font-size: 13px;
+    color: #777;
+    margin: 0;
+}
+
+.knowledge-meta {
+    font-size: 12px;
+    color: #999;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.add-knowledge {
+    border: 1px dashed #ccc;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    border-radius: 6px;
+    color: #777;
+    transition: border-color 0.2s, color 0.2s;
+    margin-top: 10px;
+}
+
+.add-knowledge:hover {
+    border-color: #233749;
+    color: #233749;
+}
+
+.add-knowledge i {
+    margin-right: 10px;
+}
+
+/* Modal for create/edit */
+.modal-header.space-modal-header {
+    background-color: #233749;
+    color: white;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-group input, 
+.form-group textarea,
+.form-group select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.knowledge-status-selector {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-top: 10px;
+}
+
+.status-option {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.status-option input[type="radio"] {
+    width: auto;
+    margin-right: 6px;
+}
+
+.status-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    display: inline-block;
+}
+
+.breadcrumb-nav {
+    margin-bottom: 20px;
+    color: #777;
+    font-size: 14px;
+}
+
+.breadcrumb-nav a {
+    color: #777;
+    text-decoration: none;
+}
+
+.breadcrumb-nav a:hover {
+    color: #233749;
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    margin: 0 8px;
+}
+
+/* Empty state */
+.empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: #777;
+}
+
+.empty-state .empty-icon {
+    font-size: 50px;
+    margin-bottom: 20px;
+    color: #ccc;
+}
+
+.empty-state h3 {
+    margin-bottom: 10px;
+    color: #555;
+}
+
+.empty-state p {
+    max-width: 400px;
+    margin: 0 auto 20px;
+}
+
+.empty-state button {
+    padding: 8px 15px;
+    background-color: #233749;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}

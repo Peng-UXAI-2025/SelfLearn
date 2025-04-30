@@ -247,6 +247,82 @@
         return window.storage.getItem('webNotebookRoadMap') || [];
     };
     
+    /**
+     * Save study spaces to storage
+     * @param {Object} spaces - Study spaces object
+     */
+    window.storage.setStudySpaces = function(spaces) {
+        return window.storage.setItem('studySpaces', spaces);
+    };
+    
+    /**
+     * Get study spaces from storage
+     * @returns {Object} - Study spaces object or empty object if none
+     */
+    window.storage.getStudySpaces = function() {
+        return window.storage.getItem('studySpaces') || {};
+    };
+    
+    /**
+     * Delete study space from storage
+     * @param {string} spaceId - Space ID to delete
+     */
+    window.storage.deleteStudySpace = function(spaceId) {
+        const spaces = window.storage.getStudySpaces();
+        if (spaces && spaces[spaceId]) {
+            delete spaces[spaceId];
+            return window.storage.setStudySpaces(spaces);
+        }
+        return true;
+    };
+    
+    /**
+     * Get knowledge item from storage
+     * @param {string} spaceId - Space ID
+     * @param {string} itemId - Item ID
+     * @returns {Object|null} - Knowledge item or null if not found
+     */
+    window.storage.getKnowledgeItem = function(spaceId, itemId) {
+        const spaces = window.storage.getStudySpaces();
+        if (spaces && spaces[spaceId] && spaces[spaceId].items) {
+            return spaces[spaceId].items.find(item => item.id === itemId) || null;
+        }
+        return null;
+    };
+    
+    /**
+     * Get all knowledge items from a space
+     * @param {string} spaceId - Space ID
+     * @returns {Array} - Array of knowledge items or empty array if none
+     */
+    window.storage.getKnowledgeItems = function(spaceId) {
+        const spaces = window.storage.getStudySpaces();
+        if (spaces && spaces[spaceId] && spaces[spaceId].items) {
+            return spaces[spaceId].items;
+        }
+        return [];
+    };
+    
+    /**
+     * Save user preferences
+     * @param {Object} preferences - User preferences object
+     */
+    window.storage.savePreferences = function(preferences) {
+        return window.storage.setItem('userPreferences', preferences);
+    };
+    
+    /**
+     * Get user preferences
+     * @returns {Object} - User preferences object
+     */
+    window.storage.getPreferences = function() {
+        return window.storage.getItem('userPreferences') || {
+            sidebarVisible: false,
+            clipboardEnabled: false,
+            theme: 'light'
+        };
+    };
+    
     // Initialize auto-save on page load
     document.addEventListener('DOMContentLoaded', function() {
         window.storage.setupAutoSave();

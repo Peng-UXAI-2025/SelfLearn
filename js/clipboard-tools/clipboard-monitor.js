@@ -10,30 +10,242 @@
     // Store monitoring state
     let isMonitoring = false;
     let clipboardHistory = [];
-    let activeWindow = null;
+    let activeContainer = null;
+    let isDragging = false;
+    let offsetX = 0;
+    let offsetY = 0;
+    
+    /**
+     * Initialize clipboard copilot
+     */
+    window.clipboardMonitor.initialize = function() {
+        // Create floating container if not exists
+        if (!document.getElementById('clipboard-copilot-container')) {
+            createFloatingCopilot();
+        }
+        
+        // Setup event listeners
+        setupEventListeners();
+        
+        console.log("Clipboard copilot initialized");
+    };
+    
+    /**
+     * Create floating copilot container
+     */
+    function createFloatingCopilot() {
+        const container = document.createElement('div');
+        container.id = 'clipboard-copilot-container';
+        container.className = 'clipboard-copilot-container';
+        
+        container.innerHTML = `
+            <div class="clipboard-copilot-header">
+                <h3>Clipboard Copilot</h3>
+                <div class="clipboard-copilot-controls">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="monitoring-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="toggle-label">Monitor</span>
+                    <button class="minimize-btn">_</button>
+                    <button class="close-btn">×</button>
+                </div>
+            </div>
+            <div class="clipboard-copilot-body">
+                <div class="clipboard-status">
+                    <div class="status-indicator inactive"></div>
+                    <div class="clipboard-status-text">
+                        Clipboard monitoring is inactive. Toggle the switch to begin capturing copied text.
+                    </div>
+                </div>
+                <div class="clipboard-content" style="display: none">
+                    <h3>Captured Text:</h3>
+                    <div id="captured-text" class="text-preview"></div>
+                    <div class="processing-options">
+                        <h3>Processing Options:</h3>
+                        <button class="process-btn" data-action="summarize">
+                            Summarize
+                        </button>
+                        <button class="process-btn" data-action="qa">Convert to Q&A</button>
+                        <button class="process-btn" data-action="tree-node">
+                            Add to Knowledge Tree
+                        </button>
+                    </div>
+                    <div class="custom-processing">
+                        <h3>Custom Processing:</h3>
+                        <textarea
+                          id="custom-prompt"
+                          placeholder="Enter custom instructions for processing the text..."
+                        ></textarea>
+                        <button id="custom-process-btn">Process</button>
+                    </div>
+                </div>
+                <div class="clipboard-history" style="display: none">
+                    <h3>Clipboard History:</h3>
+                    <div id="clipboard-history-list"></div>
+                </div>
+            </div>
+        `;
+        
+        // Add to document body
+        document.body.appendChild(container);
+        activeContainer = container;
+        
+        return container;
+    }
+    
+    /**
+     * Setup event listeners for copilot
+     */
+    function setupEventListeners() {
+        if (!activeContainer) return;
+        
+        // Monitoring toggle
+        const monitoringToggle = activeContainer.querySelector('#monitoring-toggle');
+        if (monitoringToggle) {
+            monitoringToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    window.clipboardMonitor.startMonitoring();
+                } else {
+                    window.clipboardMonitor.stopMonitoring();
+                }
+            });
+        }
+        
+        // Minimize button
+        const minimizeBtn = activeContainer.querySelector('.minimize-btn');
+        if (minimizeBtn) {
+            minimizeBtn.addEventListener('click', function() {
+                activeContainer.classList.toggle('minimized');
+                this.textContent = activeContainer.classList.contains('minimized') ? '□' : '_';
+            });
+        }
+        
+        // Close button
+        const closeBtn = activeContainer.querySelector('.close-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', function() {
+                // Stop monitoring if active
+                if (isMonitoring) {
+                    window.clipboardMonitor.stopMonitoring();
+                }
+                
+                // Hide container
+                activeContainer.style.display = 'none';
+            });
+        }
+        
+        // Draggable header
+        const header = activeContainer.querySelector('.clipboard-copilot-header');
+        if (header) {
+            header.addEventListener('mousedown', startDragging);
+        }
+        
+        // Processing buttons
+        const processButtons = activeContainer.querySelectorAll('.process-btn');
+        processButtons.forEach(button => {
+            button.addEventListener('click', function() {
+                const action = this.getAttribute('data-action');
+                const textElement = activeContainer.querySelector('#captured-text');
+                const text = textElement ? textElement.textContent : "";
+                
+                if (text.trim()) {
+                    window.textProcessor.processText(text, action, activeContainer);
+                }
+            });
+        });
+        
+        // Custom processing button
+        const customProcessBtn = activeContainer.querySelector('#custom-process-btn');
+        if (customProcessBtn) {
+            customProcessBtn.addEventListener('click', function() {
+                const customPrompt = activeContainer.querySelector('#custom-prompt').value;
+                const textElement = activeContainer.querySelector('#captured-text');
+                const text = textElement ? textElement.textContent : "";
+                
+                if (text.trim() && customPrompt.trim()) {
+                    window.textProcessor.processTextWithCustomPrompt(text, customPrompt, activeContainer);
+                }
+            });
+        }
+        
+        // Global drag handling
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('mouseup', handleDragEnd);
+    }
+    
+    /**
+     * Start dragging the copilot window
+     * @param {Event} e - Mouse event
+     */
+    function startDragging(e) {
+        if (!activeContainer) return;
+        
+        // Only handle left mouse button
+        if (e.button !== 0) return;
+        
+        e.preventDefault();
+        
+        // Get initial positions
+        const rect = activeContainer.getBoundingClientRect();
+        offsetX = e.clientX - rect.left;
+        offsetY = e.clientY - rect.top;
+        
+        isDragging = true;
+        activeContainer.classList.add('dragging');
+    }
+    
+    /**
+     * Handle drag move
+     * @param {Event} e - Mouse event
+     */
+    function handleDragMove(e) {
+        if (!isDragging || !activeContainer) return;
+        
+        e.preventDefault();
+        
+        // Update position
+        const x = e.clientX - offsetX;
+        const y = e.clientY - offsetY;
+        
+        // Constrain to window bounds
+        const maxX = window.innerWidth - activeContainer.offsetWidth;
+        const maxY = window.innerHeight - activeContainer.offsetHeight;
+        
+        activeContainer.style.left = Math.max(0, Math.min(x, maxX)) + 'px';
+        activeContainer.style.top = Math.max(0, Math.min(y, maxY)) + 'px';
+    }
+    
+    /**
+     * Handle drag end
+     */
+    function handleDragEnd() {
+        if (!isDragging || !activeContainer) return;
+        
+        isDragging = false;
+        activeContainer.classList.remove('dragging');
+    }
     
     /**
      * Start monitoring clipboard
-     * @param {HTMLElement} windowElement - Window element
      */
-    window.clipboardMonitor.startMonitoring = function(windowElement) {
+    window.clipboardMonitor.startMonitoring = function() {
         if (isMonitoring) return;
         
         isMonitoring = true;
         window.webNotebook.app.clipboardMonitorActive = true;
-        activeWindow = windowElement;
         
         // Show status message
-        updateClipboardStatus(windowElement, true);
+        updateClipboardStatus(true);
         
         // Show clipboard content container
-        const contentContainer = windowElement.querySelector('.clipboard-content');
+        const contentContainer = activeContainer.querySelector('.clipboard-content');
         if (contentContainer) {
             contentContainer.style.display = 'block';
         }
         
         // Show clipboard history container
-        const historyContainer = windowElement.querySelector('.clipboard-history');
+        const historyContainer = activeContainer.querySelector('.clipboard-history');
         if (historyContainer) {
             historyContainer.style.display = 'block';
             
@@ -60,11 +272,11 @@
         window.webNotebook.app.clipboardMonitorActive = false;
         
         // Update status
-        if (activeWindow) {
-            updateClipboardStatus(activeWindow, false);
+        if (activeContainer) {
+            updateClipboardStatus(false);
             
             // Hide clipboard content container
-            const contentContainer = activeWindow.querySelector('.clipboard-content');
+            const contentContainer = activeContainer.querySelector('.clipboard-content');
             if (contentContainer) {
                 contentContainer.style.display = 'none';
             }
@@ -73,10 +285,19 @@
         // Remove event listener
         document.removeEventListener('paste', handlePasteEvent);
         
-        // Reset active window
-        activeWindow = null;
-        
         console.log("Clipboard monitoring stopped");
+    };
+    
+    /**
+     * Show clipboard copilot
+     */
+    window.clipboardMonitor.showClipboardCopilot = function() {
+        if (!activeContainer) {
+            createFloatingCopilot();
+            setupEventListeners();
+        }
+        
+        activeContainer.style.display = 'flex';
     };
     
     /**
@@ -84,7 +305,7 @@
      * @param {Event} e - Paste event
      */
     function handlePasteEvent(e) {
-        if (!isMonitoring || !activeWindow) return;
+        if (!isMonitoring || !activeContainer) return;
         
         // Get clipboard text
         const clipboardData = e.clipboardData || window.clipboardData;
@@ -117,14 +338,13 @@
      * Show clipboard permission message
      */
     function showClipboardPermissionMessage() {
-        if (!activeWindow) return;
+        if (!activeContainer) return;
         
-        const statusElement = activeWindow.querySelector('.clipboard-status');
-        if (statusElement) {
-            statusElement.innerHTML = `
-                <p>Clipboard monitoring requires permission to access your clipboard. 
-                Please copy text and press Ctrl+V (or Cmd+V) in this window to grant permission.</p>
-            `;
+        const statusText = activeContainer.querySelector('.clipboard-status-text');
+        if (statusText) {
+            statusText.innerHTML = 
+                'Clipboard monitoring requires permission to access your clipboard. ' +
+                'Please copy text and press Ctrl+V (or Cmd+V) in this window to grant permission.';
         }
     }
     
@@ -133,10 +353,10 @@
      * @param {string} text - Clipboard text
      */
     function processClipboardText(text) {
-        if (!isMonitoring || !activeWindow) return;
+        if (!isMonitoring || !activeContainer) return;
         
         // Display the text
-        const textPreview = activeWindow.querySelector('#captured-text');
+        const textPreview = activeContainer.querySelector('#captured-text');
         if (textPreview) {
             // Limit preview to 500 characters
             const limitedText = text.length > 500 
@@ -158,21 +378,30 @@
     
     /**
      * Update clipboard status display
-     * @param {HTMLElement} windowElement - Window element
      * @param {boolean} active - Whether monitoring is active
      */
-    function updateClipboardStatus(windowElement, active) {
-        const statusElement = windowElement.querySelector('.clipboard-status');
-        if (!statusElement) return;
+    function updateClipboardStatus(active) {
+        if (!activeContainer) return;
+        
+        const statusIndicator = activeContainer.querySelector('.status-indicator');
+        const statusText = activeContainer.querySelector('.clipboard-status-text');
+        
+        if (!statusIndicator || !statusText) return;
         
         if (active) {
-            statusElement.innerHTML = '<p>Clipboard monitoring is active. Copy text from anywhere to process it.</p>';
-            statusElement.classList.add('active');
-            statusElement.classList.remove('inactive');
+            statusIndicator.classList.remove('inactive');
+            statusIndicator.classList.add('active');
+            statusText.textContent = 'Clipboard monitoring is active. Copy text from anywhere to process it.';
         } else {
-            statusElement.innerHTML = '<p>Clipboard monitoring is inactive. Click "Start Monitoring" to begin capturing copied text.</p>';
-            statusElement.classList.remove('active');
-            statusElement.classList.add('inactive');
+            statusIndicator.classList.remove('active');
+            statusIndicator.classList.add('inactive');
+            statusText.textContent = 'Clipboard monitoring is inactive. Toggle the switch to begin capturing copied text.';
+        }
+        
+        // Update toggle state
+        const monitoringToggle = activeContainer.querySelector('#monitoring-toggle');
+        if (monitoringToggle) {
+            monitoringToggle.checked = active;
         }
     }
     
@@ -225,9 +454,9 @@
      * Update history display
      */
     function updateHistoryDisplay() {
-        if (!activeWindow) return;
+        if (!activeContainer) return;
         
-        const historyList = activeWindow.querySelector('#clipboard-history-list');
+        const historyList = activeContainer.querySelector('#clipboard-history-list');
         if (!historyList) return;
         
         historyList.innerHTML = '';
@@ -272,9 +501,9 @@
      * @param {Object} item - History item
      */
     function selectHistoryItem(item) {
-        if (!activeWindow) return;
+        if (!activeContainer) return;
         
-        const textPreview = activeWindow.querySelector('#captured-text');
+        const textPreview = activeContainer.querySelector('#captured-text');
         if (textPreview) {
             // Limit preview to 500 characters
             const limitedText = item.text.length > 500 
@@ -303,10 +532,8 @@
                 {
                     label: 'Process',
                     callback: function() {
-                        // Focus the clipboard window
-                        if (activeWindow) {
-                            activeWindow.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }
+                        // Ensure copilot is visible
+                        window.clipboardMonitor.showClipboardCopilot();
                     }
                 },
                 {
@@ -335,4 +562,7 @@
     window.clipboardMonitor.getHistory = function() {
         return clipboardHistory;
     };
+    
+    // Initialize clipboard copilot when the page loads
+    document.addEventListener('DOMContentLoaded', window.clipboardMonitor.initialize);
 })();

@@ -1,0 +1,380 @@
+/* AI Window CSS File */
+/* Styles for AI-related windows and components */
+
+/* AI Window Styles - Enhanced for inline document placement */
+.ai-window {
+    width: 100%; /* Match parent width */
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    margin: 15px 0;
+    z-index: 90;
+    transition: box-shadow 0.2s ease;
+}
+
+.ai-window.draggable {
+    cursor: move;
+}
+
+.ai-window.dragging {
+    opacity: 0.8;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    z-index: 100;
+}
+
+.ai-window-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #ddd;
+    border-radius: 5px 5px 0 0;
+}
+
+.window-drag-handle {
+    cursor: move;
+    flex: 1;
+    display: flex;
+    align-items: center;
+}
+
+.window-controls {
+    display: flex;
+    gap: 10px;
+}
+
+.window-controls button {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.window-controls button:hover {
+    background-color: #eee;
+}
+
+.close-btn {
+    background-color: #f5f5f5;
+}
+
+#generate-btn {
+    background-color: #233749;
+    color: white;
+}
+
+#generate-btn:hover {
+    background-color: #557ba1;
+}
+
+#generate-btn.disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
+}
+
+.ai-window-body {
+    padding: 15px;
+    min-height: 400px;
+    display: flex;
+    flex-direction: column;
+}
+
+.window-top-area {
+    flex: 1;
+    margin-bottom: 15px;
+    position: relative; /* For the loading indicator positioning */
+}
+
+.file-upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 5px;
+    padding: 20px;
+    text-align: center;
+    min-height: 200px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+#drop-zone {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+#file-upload {
+    display: none;
+}
+
+#drop-zone label {
+    background-color: #233749;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+#drop-zone label:hover {
+    background-color: #557ba1;
+}
+
+.window-bottom-area {
+    display: flex;
+    flex-direction: column;
+}
+
+.control-panel {
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.control-item {
+    flex: 1;
+    position: relative;
+}
+
+.control-item button {
+    width: 100%;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+}
+
+.dropdown-panel {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    width: 100%;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    z-index: 10;
+    display: none;
+    padding: 10px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.model-option {
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.model-option:hover {
+    background-color: #f5f5f5;
+}
+
+.model-option.selected {
+    background-color: #e9f0f7;
+    border: 1px solid #233749;
+}
+
+#structure-textarea {
+    width: 100%;
+    height: 150px;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: none;
+}
+
+/* Uploaded Files List */
+#uploaded-files-list {
+    margin-top: 15px;
+    text-align: left;
+    width: 100%;
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.remove-file {
+    color: #c62828;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 0 5px;
+}
+
+.dropdown-file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 5px;
+    border-bottom: 1px solid #eee;
+}
+
+.dropdown-file-item:last-child {
+    border-bottom: none;
+}
+
+.remove-dropdown-file {
+    color: #c62828;
+    cursor: pointer;
+    font-weight: bold;
+    margin-left: 10px;
+}
+
+/* More options panel */
+.more-options-panel {
+    display: none;
+    padding: 10px;
+    background-color: #f5f5f5;
+    border-top: 1px solid #ddd;
+    margin-top: 10px;
+    text-align: center;
+}
+
+.more-options-panel button {
+    margin: 0 5px;
+    padding: 6px 12px;
+    background-color: #233749;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.more-options-panel button:hover {
+    background-color: #557ba1;
+}
+
+/* Loading indicator */
+.loading-indicator {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    padding: 15px;
+    margin: 10px 0;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.9);
+    z-index: 100;
+    justify-content: center;
+}
+
+.loading-spinner {
+    border: 4px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top: 4px solid #233749;
+    width: 30px;
+    height: 30px;
+    animation: spin 1s linear infinite;
+    margin-bottom: 10px;
+}
+
+.loading-status {
+    font-size: 14px;
+    margin-bottom: 10px;
+    text-align: center;
+}
+
+.progress-container {
+    width: 100%;
+    max-width: 300px;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    height: 10px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #233749;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.loading-indicator.error .progress-bar {
+    background-color: #dc3545;
+}
+
+/* D3 Visualization Styles */
+.visualization-container {
+    width: 100%;
+    height: 400px;
+    background-color: white;
+    overflow: hidden;
+    position: relative;
+    border: 1px solid #eee;
+    border-radius: 4px;
+}
+
+.tree-svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* Fullscreen mode */
+.is-fullscreen {
+    position: fixed !important;
+    top: 0;
+    left: 0;
+    width: 100vw !important;
+    height: 100vh;
+    z-index: 1000;
+    border-radius: 0;
+}
+
+.is-fullscreen .ai-window-body {
+    height: calc(100vh - 50px);
+}
+
+.is-fullscreen .visualization-container {
+    height: calc(100vh - 80px);
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .control-panel {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .control-item {
+        width: 100%;
+    }
+    
+    .ai-window-body {
+        min-height: 300px;
+    }
+    
+    .visualization-container {
+        height: 300px;
+    }
+}

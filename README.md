@@ -2,67 +2,135 @@
 
 ## Notebook Functionality
 
-## Overview
+# Web Notebook
 
-video demo: https://drive.google.com/file/d/1zjYSExyyuBTfKdciM_nlNJflKd9b5Vw7/view?usp=sharing 
+A comprehensive web-based learning and knowledge management application featuring an intuitive file manager, AI-powered content extraction, and knowledge tree visualization.
 
-The **Notebook** is a document editor (for now )integrated with advanced AI tools designed to analyze and visualize document content. It combines rich text editing with sophisticated knowledge tree visualization.
+## Features
 
----
+### 1. Interface & File Management
+- **Two Viewing Modes**: Switch between Icon View and Tree View
+- **Multiple Node Types**: Files, folders, knowledge points, AI-generated notes, and roadmap nodes
+- **Learning Roadmap Integration**: Track learning progress with visual indicators
+- **Drag & Drop**: Easily reorganize your knowledge hierarchy
+- **Context Menu**: Right-click for quick actions
 
-## Core Functionality
+### 2. AI Copilot for Content Extraction
+- **Clipboard Monitoring**: Automatically captures copied text when enabled
+- **Smart Processing**: Convert captured content into summaries, Q&A format, or add to knowledge trees
+- **Custom Prompts**: Customize AI instructions for tailored content processing
+- **History Tracking**: Access and reuse previously processed content
 
-### Document Editing
+### 3. Knowledge Tree Visualization
+- **Dynamic Tree Editor**: Create, edit, and organize knowledge structures
+- **Multiple Views**: Toggle between mind map and hierarchical list views
+- **AI-Assisted Organization**: Get suggestions for categorizing and structuring content
+- **Export Options**: Export as Markdown, PDF, or mind map files
 
-- Rich text editor with formatting tools:
-  - **Bold**, *Italic*, and Underline
-- Heading styles (H1, H2, H3)
-- List formatting:
-  - Bullet lists
-  - Numbered lists
-- Link and image insertion
-- Content organization via drag-and-drop
+## Project Structure
 
-### AI Tools Integration
+```
+WebNotebook/
+├── index.html             # Main entry point
+├── styles/                # CSS files
+│   ├── main.css           # Main styling
+│   ├── interface.css      # File management styles
+│   ├── knowledge-tree.css # Tree visualization styles
+│   ├── copilot.css        # AI copilot styles
+│   ├── ai-window.css      # AI window styles
+│   └── themes.css         # Theme customization
+├── js/                    # JavaScript files
+│   ├── app.js             # Application initialization
+│   ├── interface/         # File management modules
+│   ├── copilot/           # AI copilot modules
+│   ├── knowledge-tree/    # Knowledge tree modules
+│   └── utils/             # Utility functions
+└── assets/                # Static assets
+    ├── icons/             # UI icons
+    ├── templates/         # HTML templates
+    └── examples/          # Example files
+```
 
-- Automatic generation of document summary trees
-- Support for multiple AI models:
-  - OpenAI GPT-4o
-  - Google Gemini
-- File upload system:
-  - PDF documents
-  - Word documents
-- Custom structure definition for knowledge organization
+## Setup Instructions
 
-### D3 Visualization
+### Option 1: Using the Setup Script
 
-- Interactive knowledge tree visualization
-- Vertical drag-and-drop repositioning within the document
-- Node selection reveals detailed information panel
-- Three distinct information views for each node:
-  - **Summary View:** Concept overview
-  - **Source View:** Original document text
-  - **Explore View:** Related concepts and additional reading
+1. Make the setup script executable:
+   ```bash
+   chmod +x setup.sh
+   ```
 
-### Document Organization
+2. Run the setup script:
+   ```bash
+   ./setup.sh
+   ```
 
-- Knowledge trees maintain consistent document width
-- Ability to move trees up/down between text blocks
-- Visual placeholders indicate insertion points during dragging
-- Automatic text adjustment when repositioning trees
+3. Copy the full HTML and CSS content from the provided files to the respective files in the project structure.
 
-### Export Capabilities
+### Option 2: Manual Setup
 
-- JSON export for structured data portability
-- Markdown export for documentation purposes
-- SVG export for easy visualization sharing
-- In-document fullscreen mode for detailed content exploration
+1. Create the directory structure as shown above.
+2. Create each file with its respective content from the provided files.
 
----
+## Running the Application
 
-## Interface Low-Fi Sketches
+You can use any local development server to run the application. Here are a few options:
 
-![Low-Fi Sketches_1](SelfLearn/Sketches/Sketch I.png)
-![Low-Fi Sketches_2](SelfLearn/Sketches/Sketch II.png)
-![Low-Fi Sketches_3](SelfLearn/Sketches/Sketch III.png)
+### Using Python's built-in HTTP server
 
+```bash
+cd WebNotebook
+python -m http.server
+```
+
+Then visit `http://localhost:8000` in your browser.
+
+### Using Node.js with http-server
+
+First, install http-server:
+```bash
+npm install -g http-server
+```
+
+Then run:
+```bash
+cd WebNotebook
+http-server
+```
+
+Visit the URL shown in the terminal (usually `http://localhost:8080`).
+
+## Development Guidelines
+
+### Adding New Features
+
+1. **Module-Based Development**: Place new functionality in the appropriate module directory.
+2. **Consistent Styling**: Follow the established CSS patterns and use theme variables.
+3. **JavaScript Architecture**: Use the initialization pattern established in the example files.
+
+### Code Style Guidelines
+
+- Use meaningful variable and function names
+- Comment complex sections of code
+- Follow the established modular structure
+- Keep functions small and focused on a single task
+- Use consistent indentation (2 or 4 spaces)
+
+## Browser Compatibility
+
+The application is designed to work on modern browsers with the following features:
+- ES6+ JavaScript support
+- CSS Grid and Flexbox
+- LocalStorage API
+- Clipboard API (for Copilot functionality)
+
+## Future Enhancements
+
+- User authentication and cloud synchronization
+- Collaborative editing capabilities
+- Enhanced AI suggestions for learning paths
+- Mobile app integration
+
+## License
+
+MIT License

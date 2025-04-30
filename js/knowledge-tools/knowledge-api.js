@@ -15,8 +15,15 @@
     
     // API keys (in a real app, these would be securely stored)
     // Initialize with environment variables if available
-    let OPENAI_API_KEY = window.API_KEYS?.openai || '';
-    let GEMINI_API_KEY = window.API_KEYS?.gemini || '';
+    let OPENAI_API_KEY = '';
+    let GEMINI_API_KEY = '';
+    
+    // Initialize keys if window.API_KEYS exists
+    if (window.API_KEYS) {
+        OPENAI_API_KEY = window.API_KEYS.openai || '';
+        GEMINI_API_KEY = window.API_KEYS.gemini || '';
+        console.log('API keys initialized from env.js');
+    }
     
     /**
      * Set API keys
@@ -25,8 +32,52 @@
     window.knowledgeApi.setApiKeys = function(keys) {
         if (keys.openai) OPENAI_API_KEY = keys.openai;
         if (keys.gemini) GEMINI_API_KEY = keys.gemini;
-        console.log('API keys set:', keys.openai ? 'OpenAI key provided' : 'No OpenAI key', 
-                                    keys.gemini ? 'Gemini key provided' : 'No Gemini key');
+        console.log('API keys set:', 
+            keys.openai ? 'OpenAI key provided' : 'No OpenAI key', 
+            keys.gemini ? 'Gemini key provided' : 'No Gemini key');
+    };
+    
+    /**
+     * Check if API keys are available and prompt if needed
+     * @param {string} model - The model being used ('gpt-4o' or 'gemini-2.0-flash')
+     * @returns {Promise<boolean>} - Whether keys are available
+     */
+    window.knowledgeApi.ensureApiKeys = async function(model) {
+        // If we're using OpenAI and don't have an API key
+        if (model === 'gpt-4o' && !OPENAI_API_KEY) {
+            // Try to load from storage first
+            const storedKey = window.storage.getItem('openai_api_key');
+            if (storedKey) {
+                OPENAI_API_KEY = storedKey;
+                return true;
+            }
+            
+            // Show error message instead of using prompt()
+            window.knowledgeApi.showStatusMessage(
+                "OpenAI API key required. Please add your API key in the API Settings.", 
+                true
+            );
+            return false;
+        }
+        
+        // If we're using Gemini and don't have an API key
+        if (model === 'gemini-2.0-flash' && !GEMINI_API_KEY) {
+            // Try to load from storage first
+            const storedKey = window.storage.getItem('gemini_api_key');
+            if (storedKey) {
+                GEMINI_API_KEY = storedKey;
+                return true;
+            }
+            
+            // Show error message instead of using prompt()
+            window.knowledgeApi.showStatusMessage(
+                "Gemini API key required. Please add your API key in the API Settings.", 
+                true
+            );
+            return false;
+        }
+        
+        return true;
     };
     
     /**
@@ -80,15 +131,9 @@
      * @returns {Promise<string>} - API response
      */
     window.knowledgeApi.callOpenAI = async function(notes, structure, retryCount = 0, maxRetries = 3) {
-        if (!OPENAI_API_KEY) {
-            const key = prompt('Please enter your OpenAI API key:');
-            if (key) {
-                OPENAI_API_KEY = key;
-                window.knowledgeApi.setApiKeys({openai: key});
-                window.storage.setItem('openai_api_key', key);
-            } else {
-                throw new Error('OpenAI API key is required');
-            }
+        // Check if we have an API key
+        if (!await window.knowledgeApi.ensureApiKeys('gpt-4o')) {
+            throw new Error('OpenAI API key is required');
         }
         
         const messages = [
@@ -158,15 +203,9 @@
      * @returns {Promise<string>} - API response
      */
     window.knowledgeApi.callGemini = async function(notes, structure, retryCount = 0, maxRetries = 3) {
-        if (!GEMINI_API_KEY) {
-            const key = prompt('Please enter your Google Gemini API key:');
-            if (key) {
-                GEMINI_API_KEY = key;
-                window.knowledgeApi.setApiKeys({gemini: key});
-                window.storage.setItem('gemini_api_key', key);
-            } else {
-                throw new Error('Gemini API key is required');
-            }
+        // Check if we have an API key
+        if (!await window.knowledgeApi.ensureApiKeys('gemini-2.0-flash')) {
+            throw new Error('Gemini API key is required');
         }
         
         const formattedPrompt = window.knowledgeApi.formatGeminiPrompt(notes, structure);
@@ -367,6 +406,11 @@ Respond with ONLY the JSON, no other text before or after it.`;
             throw new Error("No text provided for processing");
         }
         
+        // Check if we have an API key
+        if (!await window.knowledgeApi.ensureApiKeys(model)) {
+            throw new Error(`${model === 'gpt-4o' ? 'OpenAI' : 'Gemini'} API key is required`);
+        }
+        
         let prompt = '';
         
         switch (action) {
@@ -481,6 +525,11 @@ Respond with ONLY the JSON, no other text before or after it.`;
         
         if (!customPrompt.trim()) {
             throw new Error("No custom prompt provided");
+        }
+        
+        // Check if we have an API key
+        if (!await window.knowledgeApi.ensureApiKeys(model)) {
+            throw new Error(`${model === 'gpt-4o' ? 'OpenAI' : 'Gemini'} API key is required`);
         }
         
         const prompt = `${customPrompt}\n\nText to process:\n\n${text}`;

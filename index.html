@@ -13,35 +13,6 @@
     <!-- Environment Variables (API Keys) -->
     <script src="env.js"></script>
 
-    <script>
-        // Initialization script to check and fix any corrupted data on page load
-        document.addEventListener("DOMContentLoaded", function () {
-          // Check for corrupted webNotebookDocument
-          try {
-            const storageKey = "webNotebook_webNotebookDocument";
-            const docData = localStorage.getItem(storageKey);
-  
-            // Try to parse the data
-            try {
-              JSON.parse(docData);
-            } catch (e) {
-              // If it can't be parsed, remove it
-              console.warn("Found corrupted document data, removing it");
-              localStorage.removeItem(storageKey);
-            }
-          } catch (e) {
-            // Something went wrong with the check itself
-            console.error("Error checking storage:", e);
-          }
-  
-          // Initialize custom events for module communication
-          window.webNotebookEvents = {
-            documentSaved: new Event("webnotebook:document-saved"),
-            treeGenerated: new Event("webnotebook:tree-generated"),
-          };
-        });
-      </script>
-
     <!-- Styling -->
     <link rel="stylesheet" href="css/main.css" />
     <link rel="stylesheet" href="css/knowledge-tree.css" />
@@ -81,6 +52,7 @@
           <button id="pdf-tree-btn">PDF Knowledge Tree</button>
           <button id="clipboard-copilot-btn">Clipboard Copilot</button>
           <button id="notes-tree-btn">Notes Tree Generator</button>
+          <!-- API Settings button will be added dynamically by JavaScript -->
         </div>
       </div>
     </div>
@@ -302,6 +274,37 @@ Example:
       </div>
     </div>
 
+    <!-- Script Initialization for Local Storage Check -->
+    <script>
+      // Initialization script to check and fix any corrupted data on page load
+      document.addEventListener("DOMContentLoaded", function () {
+        // Check for corrupted webNotebookDocument
+        try {
+          const storageKey = "webNotebook_webNotebookDocument";
+          const docData = localStorage.getItem(storageKey);
+
+          // Try to parse the data
+          try {
+            JSON.parse(docData);
+          } catch (e) {
+            // If it can't be parsed, remove it
+            console.warn("Found corrupted document data, removing it");
+            localStorage.removeItem(storageKey);
+          }
+        } catch (e) {
+          // Something went wrong with the check itself
+          console.error("Error checking storage:", e);
+        }
+
+        // Initialize custom events for module communication
+        window.webNotebookEvents = {
+          documentSaved: new Event("webnotebook:document-saved"),
+          treeGenerated: new Event("webnotebook:tree-generated"),
+        };
+      });
+    </script>
+
+    <!-- Application Scripts -->
     <script src="js/utils.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/knowledge-tools/knowledge-api.js"></script>

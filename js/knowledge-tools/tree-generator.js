@@ -135,13 +135,31 @@
      * @param {string} model - AI model to use
      */
     window.treeGenerator.generateKnowledgeTree = async function(windowElement, model) {
+        // Prevent accidental triggering
+        if (!windowElement || !notes || notes.length === 0) {
+            console.log("Tree generation skipped - no notes or window element");
+            return;
+        }
+        
+        // Show validation message if no notes
         if (notes.length === 0) {
             window.knowledgeApi.showStatusMessage("Please add some notes first", true, windowElement);
             return;
         }
         
+        // Ensure API keys are available
+        const hasKeys = await window.knowledgeApi.ensureApiKeys(model);
+        if (!hasKeys) {
+            return;
+        }
+        
         // Show loading indicator
         const windowTopArea = windowElement.querySelector('.notes-input-area');
+        if (!windowTopArea) {
+            console.error("Missing notes-input-area element");
+            return;
+        }
+        
         const loadingIndicator = window.utils.createLoadingIndicator();
         windowTopArea.appendChild(loadingIndicator);
         
@@ -167,7 +185,9 @@
             let jsonData;
             try {
                 // Try to find JSON in the response
-                const jsonMatch = result.match(/```json\n([\s\S]*?)\n```/) || result.match(/```([\s\S]*?)```/) || result.match(/\{[\s\S]*\}/);
+                const jsonMatch = result.match(/```json\n([\s\S]*?)\n```/) || 
+                                 result.match(/```([\s\S]*?)```/) || 
+                                 result.match(/\{[\s\S]*\}/);
                 
                 if (jsonMatch) {
                     jsonData = JSON.parse(jsonMatch[1] || jsonMatch[0]);
@@ -378,10 +398,14 @@
                     align-items: center;
                     padding: 15px;
                     border-bottom: 1px solid #ddd;
+                    background-color: #233749;
+                    color: white;
+                    border-radius: 5px 5px 0 0;
                 }
                 .modal-close-btn {
                     background: none;
                     border: none;
+                    color: white;
                     font-size: 24px;
                     cursor: pointer;
                 }

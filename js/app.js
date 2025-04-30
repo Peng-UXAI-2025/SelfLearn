@@ -32,6 +32,183 @@ document.addEventListener("DOMContentLoaded", function () {
     // Add API key management
     initializeApiKeyManagement();
 
+    function initializeApiKeyManagement() {
+        // Create a settings button in the header
+        const aiToolsDropdown = document.querySelector('.ai-tools-dropdown');
+        if (aiToolsDropdown) {
+            const dropdown = document.getElementById('ai-dropdown');
+            
+            // Add settings button to dropdown
+            const settingsBtn = document.createElement('button');
+            settingsBtn.id = 'api-settings-btn';
+            settingsBtn.textContent = 'API Settings';
+            dropdown.appendChild(settingsBtn);
+            
+            // Add event listener
+            settingsBtn.addEventListener('click', showApiSettingsModal);
+        }
+        
+        // Check if API keys are set
+        const openaiKey = window.storage.getItem('openai_api_key');
+        const geminiKey = window.storage.getItem('gemini_api_key');
+        
+        // Set the keys if they exist in storage
+        if (openaiKey || geminiKey) {
+            window.knowledgeApi.setApiKeys({
+                openai: openaiKey || '',
+                gemini: geminiKey || ''
+            });
+        }
+    }
+    
+    /**
+     * Show API settings modal
+     */
+    function showApiSettingsModal() {
+        // Hide dropdown
+        document.getElementById('ai-dropdown').style.display = 'none';
+        
+        // Get current keys from storage
+        const openaiKey = window.storage.getItem('openai_api_key') || '';
+        const geminiKey = window.storage.getItem('gemini_api_key') || '';
+        
+        // Create modal for API settings
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>API Settings</h3>
+                    <button class="modal-close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Enter your API keys for AI services. These will be stored in your browser's local storage.</p>
+                    <div class="form-group">
+                        <label for="openai-key">OpenAI API Key:</label>
+                        <input type="password" id="openai-key" value="${openaiKey}" placeholder="Enter your OpenAI API key">
+                        <button class="toggle-visibility-btn" data-target="openai-key">Show</button>
+                    </div>
+                    <div class="form-group">
+                        <label for="gemini-key">Google Gemini API Key:</label>
+                        <input type="password" id="gemini-key" value="${geminiKey}" placeholder="Enter your Gemini API key">
+                        <button class="toggle-visibility-btn" data-target="gemini-key">Show</button>
+                    </div>
+                    <div class="api-links">
+                        <p>
+                            <a href="https://platform.openai.com/api-keys" target="_blank">Get OpenAI API key</a> | 
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank">Get Gemini API key</a>
+                        </p>
+                    </div>
+                    <div class="form-actions">
+                        <button id="save-api-keys-btn">Save Keys</button>
+                        <button id="cancel-api-settings-btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Toggle password visibility
+        modal.querySelectorAll('.toggle-visibility-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const targetId = this.getAttribute('data-target');
+                const inputField = document.getElementById(targetId);
+                
+                if (inputField.type === 'password') {
+                    inputField.type = 'text';
+                    this.textContent = 'Hide';
+                } else {
+                    inputField.type = 'password';
+                    this.textContent = 'Show';
+                }
+            });
+        });
+        
+        // Close button
+        modal.querySelector('.modal-close-btn').addEventListener('click', function() {
+            modal.remove();
+        });
+        
+        // Cancel button
+        modal.querySelector('#cancel-api-settings-btn').addEventListener('click', function() {
+            modal.remove();
+        });
+        
+        // Save button
+        modal.querySelector('#save-api-keys-btn').addEventListener('click', function() {
+            const newOpenaiKey = document.getElementById('openai-key').value.trim();
+            const newGeminiKey = document.getElementById('gemini-key').value.trim();
+            
+            // Save to storage
+            window.storage.setItem('openai_api_key', newOpenaiKey);
+            window.storage.setItem('gemini_api_key', newGeminiKey);
+            
+            // Update active keys
+            window.knowledgeApi.setApiKeys({
+                openai: newOpenaiKey,
+                gemini: newGeminiKey
+            });
+            
+            // Show confirmation message
+            window.knowledgeApi.showStatusMessage("API keys saved successfully");
+            
+            // Close modal
+            modal.remove();
+        });
+        
+        // Close modal when clicking outside
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+        
+        // Add some styles for the API settings form if not already in document
+        if (!document.getElementById('api-settings-styles')) {
+            const style = document.createElement('style');
+            style.id = 'api-settings-styles';
+            style.textContent = `
+                .form-group {
+                    position: relative;
+                    margin-bottom: 15px;
+                }
+                .form-group input[type="password"],
+                .form-group input[type="text"] {
+                    width: 100%;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    padding-right: 50px;
+                }
+                .toggle-visibility-btn {
+                    position: absolute;
+                    right: 5px;
+                    top: 50%;
+                    transform: translateY(-50%);
+                    background: none;
+                    border: none;
+                    color: #233749;
+                    cursor: pointer;
+                    font-size: 12px;
+                }
+                .api-links {
+                    font-size: 12px;
+                    margin: 10px 0 20px;
+                    text-align: center;
+                }
+                .api-links a {
+                    color: #233749;
+                    text-decoration: none;
+                }
+                .api-links a:hover {
+                    text-decoration: underline;
+                }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+
     /**
      * Initialize API key management
      * Add this function to your app.js file

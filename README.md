@@ -50,87 +50,41 @@ WebNotebook/
     ├── templates/         # HTML templates
     └── examples/          # Example files
 ```
+--------------
 
-## Setup Instructions
-
-### Option 1: Using the Setup Script
-
-1. Make the setup script executable:
-   ```bash
-   chmod +x setup.sh
-   ```
-
-2. Run the setup script:
-   ```bash
-   ./setup.sh
-   ```
-
-3. Copy the full HTML and CSS content from the provided files to the respective files in the project structure.
-
-### Option 2: Manual Setup
-
-1. Create the directory structure as shown above.
-2. Create each file with its respective content from the provided files.
-
-## Running the Application
-
-You can use any local development server to run the application. Here are a few options:
-
-### Using Python's built-in HTTP server
-
-```bash
-cd WebNotebook
-python -m http.server
-```
-
-Then visit `http://localhost:8000` in your browser.
-
-### Using Node.js with http-server
-
-First, install http-server:
-```bash
-npm install -g http-server
-```
-
-Then run:
-```bash
-cd WebNotebook
-http-server
-```
-
-Visit the URL shown in the terminal (usually `http://localhost:8080`).
-
-## Development Guidelines
-
-### Adding New Features
-
-1. **Module-Based Development**: Place new functionality in the appropriate module directory.
-2. **Consistent Styling**: Follow the established CSS patterns and use theme variables.
-3. **JavaScript Architecture**: Use the initialization pattern established in the example files.
-
-### Code Style Guidelines
-
-- Use meaningful variable and function names
-- Comment complex sections of code
-- Follow the established modular structure
-- Keep functions small and focused on a single task
-- Use consistent indentation (2 or 4 spaces)
-
-## Browser Compatibility
-
-The application is designed to work on modern browsers with the following features:
-- ES6+ JavaScript support
-- CSS Grid and Flexbox
-- LocalStorage API
-- Clipboard API (for Copilot functionality)
-
-## Future Enhancements
-
-- User authentication and cloud synchronization
-- Collaborative editing capabilities
-- Enhanced AI suggestions for learning paths
-- Mobile app integration
-
-## License
-
-MIT License
+WebNotebook/
+├── index.html             # Main entry point
+├── styles/
+│   ├── main.css           # Main styling
+│   ├── interface.css      # File management interface styles
+│   ├── knowledge-tree.css # Knowledge tree visualization styles
+│   ├── copilot.css        # AI copilot styles
+│   └── themes.css         # Theme customization
+├── js/
+│   ├── app.js             # Application initialization
+│   ├── interface/
+│   │   ├── fileManager.js        # File/node management
+│   │   ├── viewModes.js          # Icon/Tree view switching
+│   │   ├── contextMenu.js        # Right-click menu
+│   │   ├── dragDrop.js           # Drag and drop functionality
+│   │   └── roadmapTracker.js     # Learning roadmap progression
+│   ├── copilot/
+│   │   ├── clipboardMonitor.js   # Clipboard monitoring
+│   │   ├── aiProcessor.js        # AI processing of content
+│   │   ├── promptManager.js      # AI prompt management
+│   │   └── historyTracker.js     # Content history logging
+│   ├── knowledge-tree/
+│   │   ├── treeEditor.js         # Tree creation and editing
+│   │   ├── nodeTypes.js          # Node type definitions
+│   │   ├── aiOrganizer.js        # AI suggestions for organization
+│   │   ├── visualizer.js         # Tree visualization
+│   │   └── exportManager.js      # Export functionality
+│   └── utils/
+│       ├── storage.js            # Local storage management
+│       ├── search.js             # Search functionality
+│       ├── pdfProcessor.js       # PDF handling
+│       └── apiService.js         # API communication
+└── assets/
+    ├── icons/                   # UI icons
+    ├── templates/               # HTML templates
+    └── examples/                # Example files

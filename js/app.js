@@ -9,8 +9,8 @@ const WebNotebook = (function() {
     document.addEventListener('DOMContentLoaded', function() {
         console.log('WebNotebook application initialized');
         
-        // Initialize storage first
-        WebNotebook.Storage.initialize();
+        // Initialize storage first (changed from WebNotebook.Storage to WebNotebook.Utils.Storage)
+        WebNotebook.Utils.Storage.initialize();
         
         // Initialize UI components
         WebNotebook.Interface.FileManager.initialize();

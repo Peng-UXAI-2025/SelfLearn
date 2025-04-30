@@ -1,404 +1,498 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Web Notebook</title>
-    
+
     <!-- External Libraries -->
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.4.120/build/pdf.min.js"></script>
     <script src="https://unpkg.com/mammoth@1.4.21/mammoth.browser.min.js"></script>
-    
+
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="styles/main.css">
-    <link rel="stylesheet" href="styles/interface.css">
-    <link rel="stylesheet" href="styles/knowledge-tree.css">
-    <link rel="stylesheet" href="styles/copilot.css">
-    <link rel="stylesheet" href="styles/themes.css">
-</head>
-<body>
+    <link rel="stylesheet" href="styles/main.css" />
+    <link rel="stylesheet" href="styles/interface.css" />
+    <link rel="stylesheet" href="styles/knowledge-tree.css" />
+    <link rel="stylesheet" href="styles/copilot.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+  </head>
+  <body>
     <!-- App Header -->
     <header class="app-header">
-        <div class="header-left">
-            <button id="menu-toggle" class="menu-toggle" title="Toggle Menu">☰</button>
-            <div class="breadcrumb">
-                <span class="file-title">My Notebook</span>
-                <span class="breadcrumb-separator">/</span>
-                <span class="file-title current">Untitled Document</span>
-            </div>
+      <div class="header-left">
+        <button id="menu-toggle" class="menu-toggle" title="Toggle Menu">
+          ☰
+        </button>
+        <div class="breadcrumb">
+          <span class="file-title">My Notebook</span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="file-title current">Untitled Document</span>
         </div>
-        <div class="header-center">
-            <div class="formatting-tools">
-                <button class="tool-button" title="Bold"><strong>B</strong></button>
-                <button class="tool-button" title="Italic"><em>I</em></button>
-                <button class="tool-button" title="Underline"><u>U</u></button>
-                <span class="tool-separator">|</span>
-                <button class="tool-button" title="Heading 1">H1</button>
-                <button class="tool-button" title="Heading 2">H2</button>
-                <button class="tool-button" title="Heading 3">H3</button>
-                <span class="tool-separator">|</span>
-                <button class="tool-button" title="Bullet List">•</button>
-                <button class="tool-button" title="Numbered List">1.</button>
-                <button class="tool-button" title="To-do List">☑</button>
-                <span class="tool-separator">|</span>
-                <button class="tool-button" title="Add Link"><span class="link-icon">🔗</span></button>
-                <button class="tool-button" title="Add Image"><span class="image-icon">🖼️</span></button>
-            </div>
+      </div>
+      <div class="header-center">
+        <div class="formatting-tools">
+          <button class="tool-button" title="Bold"><strong>B</strong></button>
+          <button class="tool-button" title="Italic"><em>I</em></button>
+          <button class="tool-button" title="Underline"><u>U</u></button>
+          <span class="tool-separator">|</span>
+          <button class="tool-button" title="Heading 1">H1</button>
+          <button class="tool-button" title="Heading 2">H2</button>
+          <button class="tool-button" title="Heading 3">H3</button>
+          <span class="tool-separator">|</span>
+          <button class="tool-button" title="Bullet List">•</button>
+          <button class="tool-button" title="Numbered List">1.</button>
+          <button class="tool-button" title="To-do List">☑</button>
+          <span class="tool-separator">|</span>
+          <button class="tool-button" title="Add Link">
+            <span class="link-icon">🔗</span>
+          </button>
+          <button class="tool-button" title="Add Image">
+            <span class="image-icon">🖼️</span>
+          </button>
         </div>
-        <div class="header-right">
-            <div class="view-mode-toggle">
-                <button id="tree-view-btn" class="view-btn active" title="Tree View">
-                    <span class="icon">⋮</span>
-                </button>
-                <button id="icon-view-btn" class="view-btn" title="Icon View">
-                    <span class="icon">⊞</span>
-                </button>
-            </div>
-            <div class="ai-tools-dropdown">
-                <button id="ai-tools-btn">AI TOOLS</button>
-                <div class="dropdown-content" id="ai-dropdown">
-                    <button id="copilot-btn">AI Copilot</button>
-                    <button id="doc-summary-btn">Doc Summary</button>
-                    <button id="ai-assistant-btn">AI Assistant</button>
-                    <button id="summarize-btn">Summarize Text</button>
-                </div>
-            </div>
+      </div>
+      <div class="header-right">
+        <div class="view-mode-toggle">
+          <button id="tree-view-btn" class="view-btn active" title="Tree View">
+            <span class="icon">⋮</span>
+          </button>
+          <button id="icon-view-btn" class="view-btn" title="Icon View">
+            <span class="icon">⊞</span>
+          </button>
         </div>
+        <div class="ai-tools-dropdown">
+          <button id="ai-tools-btn">AI TOOLS</button>
+          <div class="dropdown-content" id="ai-dropdown">
+            <button id="copilot-btn">AI Copilot</button>
+            <button id="doc-summary-btn">Doc Summary</button>
+            <button id="ai-assistant-btn">AI Assistant</button>
+            <button id="summarize-btn">Summarize Text</button>
+          </div>
+        </div>
+      </div>
     </header>
 
     <!-- Main Application Area -->
     <div class="app-container">
-        <!-- Left Sidebar - Knowledge Structure -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h2>Knowledge Structure</h2>
-                <div class="sidebar-actions">
-                    <button id="new-file-btn" title="New Item">+</button>
-                    <button id="search-btn" title="Search">🔍</button>
-                </div>
-            </div>
-            
-            <!-- Search Box (initially hidden) -->
-            <div class="search-container" style="display: none;">
-                <input type="text" id="search-input" placeholder="Search notes and files...">
-                <button id="close-search-btn">×</button>
-            </div>
-            
-            <!-- Tree View (Default) -->
-            <div class="knowledge-view tree-view">
-                <ul class="tree-root">
-                    <!-- Python Learning Roadmap -->
-                    <li class="tree-node">
-                        <div class="node-content" data-type="roadmap" data-status="in-progress">
-                            <span class="expand-collapse expanded">▼</span>
-                            <span class="node-icon">🗺️</span>
-                            <span class="node-name">Python Learning Path</span>
-                            <span class="progress-indicator" style="width: 60%;"></span>
-                        </div>
-                        <ul class="node-children">
-                            <li class="tree-node">
-                                <div class="node-content" data-type="file" data-status="completed">
-                                    <span class="node-icon">📄</span>
-                                    <span class="node-name">Python Basics</span>
-                                    <span class="status-indicator completed">✅</span>
-                                </div>
-                            </li>
-                            <li class="tree-node">
-                                <div class="node-content" data-type="knowledge" data-status="in-progress">
-                                    <span class="expand-collapse">▶</span>
-                                    <span class="node-icon">💡</span>
-                                    <span class="node-name">Functions & OOP</span>
-                                    <span class="status-indicator in-progress">🕓</span>
-                                </div>
-                                <ul class="node-children" style="display: none;">
-                                    <li class="tree-node">
-                                        <div class="node-content" data-type="knowledge">
-                                            <span class="node-icon">💡</span>
-                                            <span class="node-name">Decorators</span>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </li>
-                            <li class="tree-node">
-                                <div class="node-content" data-type="knowledge" data-status="not-started">
-                                    <span class="node-icon">💡</span>
-                                    <span class="node-name">Data Science with Python</span>
-                                    <span class="status-indicator not-started">❌</span>
-                                </div>
-                            </li>
-                        </ul>
-                    </li>
-                    
-                    <!-- Web Development Roadmap -->
-                    <li class="tree-node">
-                        <div class="node-content" data-type="roadmap" data-status="not-started">
-                            <span class="expand-collapse">▶</span>
-                            <span class="node-icon">🗺️</span>
-                            <span class="node-name">Web Development</span>
-                            <span class="status-indicator not-started">❌</span>
-                        </div>
-                        <ul class="node-children" style="display: none;">
-                            <li class="tree-node">
-                                <div class="node-content" data-type="knowledge">
-                                    <span class="node-icon">💡</span>
-                                    <span class="node-name">HTML Fundamentals</span>
-                                </div>
-                            </li>
-                        </ul>
-                    </li>
-                    
-                    <!-- Personal Projects Folder -->
-                    <li class="tree-node">
-                        <div class="node-content" data-type="folder">
-                            <span class="expand-collapse">▶</span>
-                            <span class="node-icon">📁</span>
-                            <span class="node-name">Personal Projects</span>
-                        </div>
-                        <ul class="node-children" style="display: none;">
-                            <li class="tree-node">
-                                <div class="node-content" data-type="file">
-                                    <span class="node-icon">📄</span>
-                                    <span class="node-name">Project Ideas</span>
-                                </div>
-                            </li>
-                            <li class="tree-node">
-                                <div class="node-content" data-type="ai-note">
-                                    <span class="node-icon">🤖</span>
-                                    <span class="node-name">AI Summary of ML Projects</span>
-                                </div>
-                            </li>
-                        </ul>
-                    </li>
-                </ul>
-            </div>
-            
-            <!-- Icon/Grid View (Initially Hidden) -->
-            <div class="knowledge-view icon-view" style="display: none;">
-                <!-- Main categories/roadmaps as grid -->
-                <div class="grid-section">
-                    <h3 class="grid-section-title">Learning Paths</h3>
-                    <div class="grid-items">
-                        <div class="grid-item" data-type="roadmap" data-status="in-progress">
-                            <div class="item-icon">🗺️</div>
-                            <div class="item-name">Python Learning Path</div>
-                            <div class="progress-bar" style="width: 60%;"></div>
-                        </div>
-                        <div class="grid-item" data-type="roadmap" data-status="not-started">
-                            <div class="item-icon">🗺️</div>
-                            <div class="item-name">Web Development</div>
-                            <div class="status-indicator not-started">❌</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="grid-section">
-                    <h3 class="grid-section-title">Folders</h3>
-                    <div class="grid-items">
-                        <div class="grid-item" data-type="folder">
-                            <div class="item-icon">📁</div>
-                            <div class="item-name">Personal Projects</div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="grid-section">
-                    <h3 class="grid-section-title">Recent Notes</h3>
-                    <div class="grid-items">
-                        <div class="grid-item" data-type="file" data-status="completed">
-                            <div class="item-icon">📄</div>
-                            <div class="item-name">Python Basics</div>
-                            <div class="status-indicator completed">✅</div>
-                        </div>
-                        <div class="grid-item" data-type="knowledge" data-status="in-progress">
-                            <div class="item-icon">💡</div>
-                            <div class="item-name">Functions & OOP</div>
-                            <div class="status-indicator in-progress">🕓</div>
-                        </div>
-                        <div class="grid-item" data-type="ai-note">
-                            <div class="item-icon">🤖</div>
-                            <div class="item-name">AI Summary of ML Projects</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </aside>
+      <!-- Left Sidebar - Knowledge Structure -->
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <h2>Knowledge Structure</h2>
+          <div class="sidebar-actions">
+            <button id="new-file-btn" title="New Item">+</button>
+            <button id="search-btn" title="Search">🔍</button>
+          </div>
+        </div>
 
-        <!-- Main Content Area -->
-        <main class="content-area">
-            <div class="title-area">
-                <h1 contenteditable="true" id="document-title">Untitled Document</h1>
+        <!-- Search Box (initially hidden) -->
+        <div class="search-container" style="display: none">
+          <input
+            type="text"
+            id="search-input"
+            placeholder="Search notes and files..."
+          />
+          <button id="close-search-btn">×</button>
+        </div>
+
+        <!-- Tree View (Default) -->
+        <div class="knowledge-view tree-view">
+          <ul class="tree-root">
+            <!-- Python Learning Roadmap -->
+            <li class="tree-node">
+              <div
+                class="node-content"
+                data-type="roadmap"
+                data-status="in-progress"
+              >
+                <span class="expand-collapse expanded">▼</span>
+                <span class="node-icon">🗺️</span>
+                <span class="node-name">Python Learning Path</span>
+                <span class="progress-indicator" style="width: 60%"></span>
+              </div>
+              <ul class="node-children">
+                <li class="tree-node">
+                  <div
+                    class="node-content"
+                    data-type="file"
+                    data-status="completed"
+                  >
+                    <span class="node-icon">📄</span>
+                    <span class="node-name">Python Basics</span>
+                    <span class="status-indicator completed">✅</span>
+                  </div>
+                </li>
+                <li class="tree-node">
+                  <div
+                    class="node-content"
+                    data-type="knowledge"
+                    data-status="in-progress"
+                  >
+                    <span class="expand-collapse">▶</span>
+                    <span class="node-icon">💡</span>
+                    <span class="node-name">Functions & OOP</span>
+                    <span class="status-indicator in-progress">🕓</span>
+                  </div>
+                  <ul class="node-children" style="display: none">
+                    <li class="tree-node">
+                      <div class="node-content" data-type="knowledge">
+                        <span class="node-icon">💡</span>
+                        <span class="node-name">Decorators</span>
+                      </div>
+                    </li>
+                  </ul>
+                </li>
+                <li class="tree-node">
+                  <div
+                    class="node-content"
+                    data-type="knowledge"
+                    data-status="not-started"
+                  >
+                    <span class="node-icon">💡</span>
+                    <span class="node-name">Data Science with Python</span>
+                    <span class="status-indicator not-started">❌</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Web Development Roadmap -->
+            <li class="tree-node">
+              <div
+                class="node-content"
+                data-type="roadmap"
+                data-status="not-started"
+              >
+                <span class="expand-collapse">▶</span>
+                <span class="node-icon">🗺️</span>
+                <span class="node-name">Web Development</span>
+                <span class="status-indicator not-started">❌</span>
+              </div>
+              <ul class="node-children" style="display: none">
+                <li class="tree-node">
+                  <div class="node-content" data-type="knowledge">
+                    <span class="node-icon">💡</span>
+                    <span class="node-name">HTML Fundamentals</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
+
+            <!-- Personal Projects Folder -->
+            <li class="tree-node">
+              <div class="node-content" data-type="folder">
+                <span class="expand-collapse">▶</span>
+                <span class="node-icon">📁</span>
+                <span class="node-name">Personal Projects</span>
+              </div>
+              <ul class="node-children" style="display: none">
+                <li class="tree-node">
+                  <div class="node-content" data-type="file">
+                    <span class="node-icon">📄</span>
+                    <span class="node-name">Project Ideas</span>
+                  </div>
+                </li>
+                <li class="tree-node">
+                  <div class="node-content" data-type="ai-note">
+                    <span class="node-icon">🤖</span>
+                    <span class="node-name">AI Summary of ML Projects</span>
+                  </div>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Icon/Grid View (Initially Hidden) -->
+        <div class="knowledge-view icon-view" style="display: none">
+          <!-- Main categories/roadmaps as grid -->
+          <div class="grid-section">
+            <h3 class="grid-section-title">Learning Paths</h3>
+            <div class="grid-items">
+              <div
+                class="grid-item"
+                data-type="roadmap"
+                data-status="in-progress"
+              >
+                <div class="item-icon">🗺️</div>
+                <div class="item-name">Python Learning Path</div>
+                <div class="progress-bar" style="width: 60%"></div>
+              </div>
+              <div
+                class="grid-item"
+                data-type="roadmap"
+                data-status="not-started"
+              >
+                <div class="item-icon">🗺️</div>
+                <div class="item-name">Web Development</div>
+                <div class="status-indicator not-started">❌</div>
+              </div>
             </div>
-            <div class="body-area">
-                <div contenteditable="true" id="document-body">
-                    <p>Start writing your document here...</p>
-                </div>
+          </div>
+
+          <div class="grid-section">
+            <h3 class="grid-section-title">Folders</h3>
+            <div class="grid-items">
+              <div class="grid-item" data-type="folder">
+                <div class="item-icon">📁</div>
+                <div class="item-name">Personal Projects</div>
+              </div>
             </div>
-        </main>
+          </div>
+
+          <div class="grid-section">
+            <h3 class="grid-section-title">Recent Notes</h3>
+            <div class="grid-items">
+              <div class="grid-item" data-type="file" data-status="completed">
+                <div class="item-icon">📄</div>
+                <div class="item-name">Python Basics</div>
+                <div class="status-indicator completed">✅</div>
+              </div>
+              <div
+                class="grid-item"
+                data-type="knowledge"
+                data-status="in-progress"
+              >
+                <div class="item-icon">💡</div>
+                <div class="item-name">Functions & OOP</div>
+                <div class="status-indicator in-progress">🕓</div>
+              </div>
+              <div class="grid-item" data-type="ai-note">
+                <div class="item-icon">🤖</div>
+                <div class="item-name">AI Summary of ML Projects</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Area -->
+      <main class="content-area">
+        <div class="title-area">
+          <h1 contenteditable="true" id="document-title">Untitled Document</h1>
+        </div>
+        <div class="body-area">
+          <div contenteditable="true" id="document-body">
+            <p>Start writing your document here...</p>
+          </div>
+        </div>
+      </main>
     </div>
 
     <!-- Context Menu (initially hidden) -->
-    <div class="context-menu" style="display: none;">
-        <ul>
-            <li data-action="new-file">New Note</li>
-            <li data-action="new-folder">New Folder</li>
-            <li data-action="new-knowledge">New Knowledge Point</li>
-            <li data-action="new-roadmap">New Learning Path</li>
-            <li class="divider"></li>
-            <li data-action="rename">Rename</li>
-            <li data-action="delete">Delete</li>
-            <li class="divider"></li>
-            <li data-action="status-completed">Mark as Completed</li>
-            <li data-action="status-inprogress">Mark as In Progress</li>
-            <li data-action="status-notstarted">Mark as Not Started</li>
-        </ul>
+    <div class="context-menu" style="display: none">
+      <ul>
+        <li data-action="new-file">New Note</li>
+        <li data-action="new-folder">New Folder</li>
+        <li data-action="new-knowledge">New Knowledge Point</li>
+        <li data-action="new-roadmap">New Learning Path</li>
+        <li class="divider"></li>
+        <li data-action="rename">Rename</li>
+        <li data-action="delete">Delete</li>
+        <li class="divider"></li>
+        <li data-action="status-completed">Mark as Completed</li>
+        <li data-action="status-inprogress">Mark as In Progress</li>
+        <li data-action="status-notstarted">Mark as Not Started</li>
+      </ul>
     </div>
 
     <!-- New Item Dialog (initially hidden) -->
-    <div class="modal" id="new-item-modal" style="display: none;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Item</h3>
-                <button class="close-modal-btn">×</button>
-            </div>
-            <div class="modal-body">
-                <div class="item-type-selector">
-                    <div class="item-type" data-type="file">
-                        <div class="type-icon">📄</div>
-                        <div class="type-name">Note</div>
-                    </div>
-                    <div class="item-type" data-type="folder">
-                        <div class="type-icon">📁</div>
-                        <div class="type-name">Folder</div>
-                    </div>
-                    <div class="item-type" data-type="knowledge">
-                        <div class="type-icon">💡</div>
-                        <div class="type-name">Knowledge</div>
-                    </div>
-                    <div class="item-type" data-type="roadmap">
-                        <div class="type-icon">🗺️</div>
-                        <div class="type-name">Roadmap</div>
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="new-item-name">Name</label>
-                    <input type="text" id="new-item-name" placeholder="Enter name">
-                </div>
-                <div class="form-group" id="parent-selection" style="display: none;">
-                    <label for="parent-item">Add to</label>
-                    <select id="parent-item">
-                        <option value="root">Root (Main Level)</option>
-                        <!-- Other options will be added dynamically -->
-                    </select>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="create-item-btn" class="primary-btn">Create</button>
-                <button class="cancel-btn">Cancel</button>
-            </div>
+    <div class="modal" id="new-item-modal" style="display: none">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Create New Item</h3>
+          <button class="close-modal-btn">×</button>
         </div>
+        <div class="modal-body">
+          <div class="item-type-selector">
+            <div class="item-type" data-type="file">
+              <div class="type-icon">📄</div>
+              <div class="type-name">Note</div>
+            </div>
+            <div class="item-type" data-type="folder">
+              <div class="type-icon">📁</div>
+              <div class="type-name">Folder</div>
+            </div>
+            <div class="item-type" data-type="knowledge">
+              <div class="type-icon">💡</div>
+              <div class="type-name">Knowledge</div>
+            </div>
+            <div class="item-type" data-type="roadmap">
+              <div class="type-icon">🗺️</div>
+              <div class="type-name">Roadmap</div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="new-item-name">Name</label>
+            <input type="text" id="new-item-name" placeholder="Enter name" />
+          </div>
+          <div class="form-group" id="parent-selection" style="display: none">
+            <label for="parent-item">Add to</label>
+            <select id="parent-item">
+              <option value="root">Root (Main Level)</option>
+              <!-- Other options will be added dynamically -->
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button id="create-item-btn" class="primary-btn">Create</button>
+          <button class="cancel-btn">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <!-- AI Copilot Popup (initially hidden) -->
-    <div id="copilot-popup" class="copilot-container" style="display: none;">
-        <div class="copilot-header">
-            <h3>AI Copilot</h3>
-            <button class="close-btn">×</button>
+    <div id="copilot-popup" class="copilot-container" style="display: none">
+      <div class="copilot-header">
+        <h3>AI Copilot</h3>
+        <button class="close-btn">×</button>
+      </div>
+      <div class="copilot-body">
+        <div class="clipboard-monitor-toggle">
+          <label class="toggle-switch">
+            <input type="checkbox" id="clipboard-monitor-toggle" />
+            <span class="toggle-slider"></span>
+          </label>
+          <span class="toggle-label">Monitor clipboard for content</span>
         </div>
-        <div class="copilot-body">
-            <div class="clipboard-monitor-toggle">
-                <label class="toggle-switch">
-                    <input type="checkbox" id="clipboard-monitor-toggle">
-                    <span class="toggle-slider"></span>
-                </label>
-                <span class="toggle-label">Monitor clipboard for content</span>
-            </div>
-            
-            <div class="captured-content">
-                <h4>Captured Content</h4>
-                <div id="captured-text" class="text-display">No content captured yet. Copy text from anywhere to start.</div>
-            </div>
-            
-            <div class="processing-options">
-                <h4>Suggested Actions</h4>
-                <button class="process-btn" data-action="summarize">Summarize into Key Points</button>
-                <button class="process-btn" data-action="qa">Convert to Q&A Format</button>
-                <button class="process-btn" data-action="insert">Add to Knowledge Structure</button>
-            </div>
-            
-            <div class="custom-prompt">
-                <h4>Custom Prompt</h4>
-                <textarea id="custom-prompt" placeholder="Enter custom instructions for the AI..."></textarea>
-                <button class="process-btn" data-action="custom">Process with Custom Prompt</button>
-            </div>
+
+        <div class="captured-content">
+          <h4>Captured Content</h4>
+          <div id="captured-text" class="text-display">
+            No content captured yet. Copy text from anywhere to start.
+          </div>
         </div>
+
+        <div class="processing-options">
+          <h4>Suggested Actions</h4>
+          <button class="process-btn" data-action="summarize">
+            Summarize into Key Points
+          </button>
+          <button class="process-btn" data-action="qa">
+            Convert to Q&A Format
+          </button>
+          <button class="process-btn" data-action="insert">
+            Add to Knowledge Structure
+          </button>
+        </div>
+
+        <div class="custom-prompt">
+          <h4>Custom Prompt</h4>
+          <textarea
+            id="custom-prompt"
+            placeholder="Enter custom instructions for the AI..."
+          ></textarea>
+          <button class="process-btn" data-action="custom">
+            Process with Custom Prompt
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Knowledge Tree Editor (initially hidden) -->
-    <div class="knowledge-tree-editor" style="display: none;">
-        <div class="tree-editor-header">
-            <h3>Knowledge Structure Editor</h3>
-            <div class="editor-controls">
-                <button id="mind-map-view-btn" class="active">Mind Map</button>
-                <button id="hierarchical-view-btn">Hierarchical</button>
-                <span class="control-separator">|</span>
-                <button id="add-node-btn" title="Add Node">+</button>
-                <button id="export-tree-btn" title="Export">⬇</button>
-                <button id="close-tree-editor-btn">×</button>
-            </div>
+    <div class="knowledge-tree-editor" style="display: none">
+      <div class="tree-editor-header">
+        <h3>Knowledge Structure Editor</h3>
+        <div class="editor-controls">
+          <button id="mind-map-view-btn" class="active">Mind Map</button>
+          <button id="hierarchical-view-btn">Hierarchical</button>
+          <span class="control-separator">|</span>
+          <button id="add-node-btn" title="Add Node">+</button>
+          <button id="export-tree-btn" title="Export">⬇</button>
+          <button id="close-tree-editor-btn">×</button>
         </div>
-        <div class="tree-editor-body">
-            <div class="mind-map-view">
-                <!-- D3.js will render here -->
-                <svg width="100%" height="100%" id="mind-map-svg"></svg>
-            </div>
-            <div class="hierarchical-view" style="display: none;">
-                <!-- Tree structure will be rendered here -->
-            </div>
+      </div>
+      <div class="tree-editor-body">
+        <div class="mind-map-view">
+          <!-- D3.js will render here -->
+          <svg width="100%" height="100%" id="mind-map-svg"></svg>
         </div>
+        <div class="hierarchical-view" style="display: none">
+          <!-- Tree structure will be rendered here -->
+        </div>
+      </div>
     </div>
 
     <!-- Document Summary Window (initially hidden) -->
-    <div id="doc-summary-window" class="modal" style="display: none;">
-        <div class="modal-content large-modal">
-            <div class="modal-header">
-                <h3>Document Summary</h3>
-                <button class="close-modal-btn">×</button>
+    <div id="doc-summary-window" class="modal" style="display: none">
+      <div class="modal-content large-modal">
+        <div class="modal-header">
+          <h3>Document Summary</h3>
+          <button class="close-modal-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="file-upload-area">
+            <div id="drop-zone">
+              <p>Drag & drop files here or</p>
+              <input
+                type="file"
+                id="file-upload"
+                accept=".pdf,.doc,.docx,.txt,.md"
+                multiple
+              />
+              <label for="file-upload">Choose Files</label>
             </div>
-            <div class="modal-body">
-                <div class="file-upload-area">
-                    <div id="drop-zone">
-                        <p>Drag & drop files here or</p>
-                        <input type="file" id="file-upload" accept=".pdf,.doc,.docx,.txt,.md" multiple>
-                        <label for="file-upload">Choose Files</label>
-                    </div>
-                    <div id="uploaded-files-list"></div>
-                </div>
-                
-                <div class="summary-options">
-                    <div class="form-group">
-                        <label for="ai-model">AI Model</label>
-                        <select id="ai-model">
-                            <option value="openai">OpenAI GPT-4o</option>
-                            <option value="gemini">Google Gemini</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="structure-textarea">Custom Structure (Optional)</label>
-                        <textarea id="structure-textarea" placeholder="Define custom structure...
+            <div id="uploaded-files-list"></div>
+          </div>
+
+          <div class="summary-options">
+            <div class="form-group">
+              <label for="ai-model">AI Model</label>
+              <select id="ai-model">
+                <option value="openai">OpenAI GPT-4o</option>
+                <option value="gemini">Google Gemini</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="structure-textarea"
+                >Custom Structure (Optional)</label
+              >
+              <textarea
+                id="structure-textarea"
+                placeholder="Define custom structure...
 Example:
 - Main Topic
   - Subtopic 1
-  - Subtopic 2"></textarea>
-                    </div>
-                    <button id="generate-summary-btn" class="primary-btn" disabled>Generate Summary</button>
-                </div>
+  - Subtopic 2"
+              ></textarea>
             </div>
+            <button id="generate-summary-btn" class="primary-btn" disabled>
+              Generate Summary
+            </button>
+          </div>
         </div>
+      </div>
     </div>
 
     <!-- Scripts -->
+    <!-- Scripts: Load in dependency order -->
+    <!-- Utils first -->
+    <script src="js/utils/storage.js"></script>
+    <script src="js/utils/search.js"></script>
+    <script src="js/utils.js"></script>
+
+    <!-- Interface components -->
+    <script src="js/interface/viewModes.js"></script>
+    <script src="js/interface/fileManager.js"></script>
+    <script src="js/interface/contextMenu.js"></script>
+    <script src="js/interface/dragDrop.js"></script>
+    <script src="js/interface/roadmapTracker.js"></script>
+
+    <!-- Knowledge Tree components -->
+    <script src="js/knowledge-tree/nodeTypes.js"></script>
+    <script src="js/knowledge-tree/treeEditor.js"></script>
+    <script src="js/knowledge-tree/visualizer.js"></script>
+    <script src="js/knowledge-tree/exportManager.js"></script>
+    <script src="js/knowledge-tree/aiOrganizer.js"></script>
+
+    <!-- AI Copilot components -->
+    <script src="js/copilot/clipboardMonitor.js"></script>
+    <script src="js/copilot/promptManager.js"></script>
+    <script src="js/copilot/historyTracker.js"></script>
+    <script src="js/copilot/aiProcessor.js"></script>
+    <script src="js/copilot/copilot.js"></script>
+
+    <!-- Main application -->
     <script src="js/app.js"></script>
-    <!-- Additional script imports would go here -->
-</body>
+  </body>
 </html>

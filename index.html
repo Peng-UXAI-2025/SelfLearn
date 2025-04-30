@@ -116,6 +116,37 @@
           treeGenerated: new Event("webnotebook:tree-generated"),
         };
       });
+
+      <div id="node-details-panel" style="display: none;">
+    <div class="details-header">
+        <h2 id="node-title">Node Title</h2>
+        <button class="close-details-btn">&times;</button>
+    </div>
+    <div class="tab-container">
+        <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="summary">Summary</button>
+            <button class="tab-btn" data-tab="source">Source</button>
+            <button class="tab-btn" data-tab="explore">Explore</button>
+        </div>
+        <div class="tab-content">
+            <div id="summary-tab" class="tab-panel active">
+                <p id="node-summary">No summary available.</p>
+            </div>
+            <div id="source-tab" class="tab-panel">
+                <pre id="node-source">No source content available.</pre>
+            </div>
+            <div id="explore-tab" class="tab-panel">
+                <h3>Related Concepts</h3>
+                <ul id="related-concepts">
+                    <li>No related concepts available.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="node-actions">
+        <!-- View Notes button will be added here by JavaScript -->
+    </div>
+</div>
     </script>
 
     <!-- Application Scripts -->
@@ -148,5 +179,6 @@
         }
       });
     </script>
+
   </body>
 </html>

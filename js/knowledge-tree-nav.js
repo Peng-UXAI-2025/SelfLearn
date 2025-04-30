@@ -1,281 +1,101 @@
 /**
- * Knowledge Tree Navigation Module
- * Implements hierarchical knowledge tree functionality for SelfLearn notebook
+ * Knowledge Node Navigator Module
+ * Enhanced version that properly connects tree visualization nodes to content pages
  */
 
 (function() {
-    // Create knowledge tree namespace
-    window.knowledgeTree = {};
+    // Create namespace
+    window.nodeNavigator = {};
     
-    // Reference to the current space and item from studySpaces module
-    let currentSpace = null;
-    let currentItem = null;
+    // Store active nodes for navigation
+    let activeTreeData = null;
+    let currentNodeId = null;
     
     /**
-     * Initialize knowledge tree navigation
+     * Initialize with tree data
+     * @param {Object} treeData - The knowledge tree data
      */
-    window.knowledgeTree.initialize = function() {
-        // Add click handlers to any knowledge items already in the DOM
-        addKnowledgeItemClickHandlers();
+    window.nodeNavigator.initialize = function(treeData) {
+        activeTreeData = treeData;
         
-        // Listen for DOM changes to handle dynamically added elements
-        setupDOMObserver();
+        // Set node IDs if they don't exist
+        ensureNodeIds(treeData);
         
-        console.log("Knowledge tree navigation initialized");
+        console.log("Knowledge node navigator initialized");
     };
-
+    
     /**
-     * Set up a MutationObserver to watch for DOM changes
-     * This helps add click handlers to dynamically added knowledge items
+     * Ensure all nodes have unique IDs
+     * @param {Object} node - Tree node to process
+     * @param {string} parentId - Parent node ID (for hierarchical IDs)
      */
-    function setupDOMObserver() {
-        // Create an observer instance
-        const observer = new MutationObserver(function(mutations) {
-            mutations.forEach(function(mutation) {
-                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-                    // Check if we need to add click handlers
-                    setTimeout(addKnowledgeItemClickHandlers, 100);
-                }
+    function ensureNodeIds(node, parentId = 'root') {
+        if (!node.id) {
+            // Create ID from title or assign random ID
+            node.id = node.title ? 
+                `${parentId}-${node.title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}` : 
+                `${parentId}-${Math.random().toString(36).substring(2, 9)}`;
+        }
+        
+        // Process children recursively
+        if (node.children && Array.isArray(node.children)) {
+            node.children.forEach((child, index) => {
+                ensureNodeIds(child, node.id);
             });
-        });
-        
-        // Start observing the document body for DOM changes
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+        }
     }
-
+    
     /**
-     * Open knowledge item with proper tree structure handling
-     * @param {string} itemId - Knowledge item ID
+     * Handle node click from visualization
+     * @param {Object} nodeData - The clicked node data
      */
-    window.knowledgeTree.openKnowledgeItem = function(itemId) {
-        // Get current space from studySpaces if available
-        if (window.studySpaces && typeof window.studySpaces.getCurrentSpace === 'function') {
-            currentSpace = window.studySpaces.getCurrentSpace();
-        }
+    window.nodeNavigator.handleNodeClick = function(nodeData) {
+        // Store current node ID
+        currentNodeId = nodeData.id;
         
-        if (!currentSpace || !currentSpace.items) {
-            console.error("Cannot open knowledge item: No current space available");
-            return;
-        }
-        
-        // Find item in the current space
-        const item = findKnowledgeItemInHierarchy(currentSpace.items, itemId);
-        if (!item) {
-            console.error(`Knowledge item not found: ${itemId}`);
-            return;
-        }
-        
-        // Store current item as active
-        currentItem = item;
-        
-        // Update current item in studySpaces if possible
-        if (window.studySpaces && typeof window.studySpaces.setCurrentItem === 'function') {
-            window.studySpaces.setCurrentItem(item);
-        }
-        
-        // Show knowledge content with tree navigation
-        showKnowledgeContentWithTree(currentSpace.id, item);
+        // Navigate to the node's content page
+        navigateToNodePage(nodeData);
     };
-
+    
     /**
-     * Add click handlers to knowledge items
-     * This function can be called whenever new items are added to the DOM
+     * Navigate to a node's content page
+     * @param {Object} nodeData - The node data
      */
-    function addKnowledgeItemClickHandlers() {
-        // Add handlers to main knowledge items
-        document.querySelectorAll('.knowledge-item').forEach(item => {
-            if (!item.hasAttribute('data-click-handler-added')) {
-                const itemId = item.getAttribute('data-item-id');
-                if (itemId) {
-                    item.addEventListener('click', function() {
-                        window.knowledgeTree.openKnowledgeItem(itemId);
-                    });
-                    item.setAttribute('data-click-handler-added', 'true');
-                }
-            }
-        });
-        
-        // Add handlers to child knowledge items
-        document.querySelectorAll('.child-knowledge-item').forEach(item => {
-            if (!item.hasAttribute('data-click-handler-added')) {
-                const itemId = item.getAttribute('data-item-id');
-                if (itemId) {
-                    item.addEventListener('click', function() {
-                        window.knowledgeTree.openKnowledgeItem(itemId);
-                    });
-                    item.setAttribute('data-click-handler-added', 'true');
-                }
-            }
-        });
-        
-        // Add handlers to tree items in sidebar
-        document.querySelectorAll('.tree-item-content').forEach(item => {
-            if (!item.hasAttribute('data-click-handler-added')) {
-                // Find the closest tree-item to get the item ID
-                const treeItem = item.closest('.tree-item');
-                if (treeItem) {
-                    const itemId = treeItem.getAttribute('data-item-id');
-                    if (itemId) {
-                        item.addEventListener('click', function(e) {
-                            // Prevent triggering if clicking on expand/collapse button
-                            if (e.target.classList.contains('expand-collapse-btn')) return;
-                            window.knowledgeTree.openKnowledgeItem(itemId);
-                        });
-                        item.setAttribute('data-click-handler-added', 'true');
-                    }
-                }
-            }
-        });
-    }
-
-    /**
-     * Find a knowledge item in the hierarchy (recursive search)
-     * @param {Array} items - Array of items to search
-     * @param {string} itemId - ID to find
-     * @param {Array} path - Path accumulator for breadcrumb (optional)
-     * @returns {Object|null} - Found item or null
-     */
-    function findKnowledgeItemInHierarchy(items, itemId, path = []) {
-        if (!items || !Array.isArray(items)) return null;
-        
-        for (const item of items) {
-            // Check if this is the item we're looking for
-            if (item.id === itemId) {
-                // If we found it, add the path information to the item
-                item._path = path;
-                return item;
-            }
-            
-            // Check children if any
-            if (item.children && Array.isArray(item.children)) {
-                // Build the path for this level
-                const newPath = [...path, {
-                    id: item.id,
-                    title: item.title
-                }];
-                
-                // Recursively search in children
-                const found = findKnowledgeItemInHierarchy(item.children, itemId, newPath);
-                if (found) return found;
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Show knowledge content with tree navigation
-     * @param {string} spaceId - Space ID
-     * @param {Object} item - Knowledge item
-     */
-    function showKnowledgeContentWithTree(spaceId, item) {
-        // Get the content area
-        const contentArea = document.querySelector('.content');
-        
-        // Create container with sidebar + content layout
-        const pageContainer = document.createElement('div');
-        pageContainer.className = 'notebook-container';
-        
-        // Create sidebar for tree navigation
-        const sidebar = createKnowledgeTreeSidebar(currentSpace, item);
-        pageContainer.appendChild(sidebar);
-        
-        // Create content page
+    function navigateToNodePage(nodeData) {
+        // Create content page container
         const contentPage = document.createElement('div');
         contentPage.className = 'knowledge-content-page';
         
         // Add breadcrumb navigation
-        const breadcrumb = document.createElement('div');
-        breadcrumb.className = 'breadcrumb-nav';
-        
-        // Build breadcrumb based on path
-        let breadcrumbHTML = `<a href="#" class="to-dashboard">Dashboard</a>`;
-        breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
-        breadcrumbHTML += `<a href="#" class="to-space">${currentSpace.name}</a>`;
-        
-        // Add path segments if they exist
-        if (item._path && item._path.length > 0) {
-            item._path.forEach(segment => {
-                breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
-                breadcrumbHTML += `<a href="#" class="to-path-item" data-id="${segment.id}">${segment.title}</a>`;
-            });
-        }
-        
-        // Add current item
-        breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
-        breadcrumbHTML += `<span>${item.title}</span>`;
-        
-        breadcrumb.innerHTML = breadcrumbHTML;
-        
-        // Add breadcrumb click handlers
-        breadcrumb.querySelector('.to-dashboard').addEventListener('click', (e) => {
-            e.preventDefault();
-            window.studySpaces.showWelcomeDashboard();
-        });
-        
-        breadcrumb.querySelector('.to-space').addEventListener('click', (e) => {
-            e.preventDefault();
-            window.studySpaces.openStudySpace(spaceId);
-        });
-        
-        // Add click handlers for path items
-        breadcrumb.querySelectorAll('.to-path-item').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const pathItemId = e.target.dataset.id;
-                window.knowledgeTree.openKnowledgeItem(pathItemId);
-            });
-        });
-        
+        const breadcrumb = createBreadcrumb(nodeData);
         contentPage.appendChild(breadcrumb);
         
         // Add content header
         const header = document.createElement('div');
         header.className = 'content-header';
         
-        // Get status class
-        let statusClass = 'status-not-started';
-        let statusText = 'Not Started';
-        if (item.status === 'completed') {
-            statusClass = 'status-completed';
-            statusText = 'Completed';
-        } else if (item.status === 'in-progress') {
-            statusClass = 'status-in-progress';
-            statusText = 'In Progress';
-        }
-        
         header.innerHTML = `
             <div class="content-title">
-                <h1>${item.title}</h1>
-                <div class="content-subtitle">${item.subtitle || ''}</div>
+                <h1>${nodeData.title}</h1>
+                <div class="content-subtitle">${nodeData.summary || ''}</div>
             </div>
             <div class="content-actions">
-                <div class="content-status">
-                    <span class="status-indicator ${statusClass}"></span>
-                    <span class="status-text">${statusText}</span>
-                </div>
-                <div class="header-buttons">
-                    <button class="action-btn generate-tree-btn">
-                        <i class="icon-tree"></i> Generate Tree
-                    </button>
-                    <button class="action-btn edit-content-btn">
-                        <i class="icon-edit"></i> Edit
-                    </button>
-                </div>
+                <button class="edit-node-btn">
+                    <i class="icon-edit"></i> Edit
+                </button>
+                <button class="back-to-tree-btn">
+                    <i class="icon-tree"></i> Back to Tree
+                </button>
             </div>
         `;
         
-        // Add edit button handler
-        header.querySelector('.edit-content-btn').addEventListener('click', () => {
-            showEditKnowledgeModal(spaceId, item);
+        // Add event listeners for buttons
+        header.querySelector('.edit-node-btn').addEventListener('click', () => {
+            showEditNodeModal(nodeData);
         });
         
-        // Add generate tree button handler
-        header.querySelector('.generate-tree-btn').addEventListener('click', () => {
-            showGenerateTreeModal(spaceId, item);
+        header.querySelector('.back-to-tree-btn').addEventListener('click', () => {
+            showTreeVisualization();
         });
         
         contentPage.appendChild(header);
@@ -284,316 +104,186 @@
         const body = document.createElement('div');
         body.className = 'content-body';
         
-        // Check if content exists, if not show placeholder
-        if (item.content) {
-            body.innerHTML = item.content;
-        } else {
-            body.innerHTML = `
-                <div class="empty-content">
-                    <div class="empty-icon">📝</div>
-                    <h3>No content yet</h3>
-                    <p>This knowledge item doesn't have any content yet. Click the Edit button to add content, or use Generate Tree to create a structure automatically.</p>
-                </div>
-            `;
-        }
+        // Format the content with proper HTML
+        body.innerHTML = nodeData.content || nodeData.summary || 'No detailed content available for this node.';
         
         contentPage.appendChild(body);
         
-        // If there are children, display them as sub-pages
-        if (item.children && item.children.length > 0) {
+        // Add children section if there are child nodes
+        if (nodeData.children && nodeData.children.length > 0) {
             const childrenSection = document.createElement('div');
             childrenSection.className = 'children-section';
             
             const childrenTitle = document.createElement('h2');
             childrenTitle.className = 'children-title';
-            childrenTitle.textContent = 'Sub-pages';
+            childrenTitle.innerHTML = `Sub-topics <span class="children-counter">${nodeData.children.length}</span>`;
             childrenSection.appendChild(childrenTitle);
             
             const childrenList = document.createElement('div');
             childrenList.className = 'children-list';
             
             // Add each child as a clickable item
-            item.children.forEach(child => {
-                const childItem = createChildKnowledgeItem(child);
+            nodeData.children.forEach(child => {
+                const childItem = createChildItem(child);
                 childrenList.appendChild(childItem);
             });
             
             childrenSection.appendChild(childrenList);
             
-            // Add "Add new sub-page" button
+            // Add "Add child" button
             const addChildButton = document.createElement('div');
             addChildButton.className = 'add-child-button';
-            addChildButton.innerHTML = `<i class="icon-plus"></i> Add New Sub-page`;
+            addChildButton.innerHTML = `<i class="icon-plus"></i> Add New Sub-topic`;
             
             addChildButton.addEventListener('click', () => {
-                showAddChildModal(spaceId, item);
+                showAddChildModal(nodeData);
             });
             
             childrenSection.appendChild(addChildButton);
             
             contentPage.appendChild(childrenSection);
-        } else {
-            // If no children, show add sub-page button
-            const addChildSection = document.createElement('div');
-            addChildSection.className = 'add-child-section';
-            
-            const childrenTitle = document.createElement('h2');
-            childrenTitle.className = 'children-title';
-            childrenTitle.textContent = 'Sub-pages';
-            addChildSection.appendChild(childrenTitle);
-            
-            const addChildMessage = document.createElement('p');
-            addChildMessage.className = 'children-message';
-            addChildMessage.textContent = 'No sub-pages yet. Add one below or use Generate Tree to create a structure automatically.';
-            
-            addChildSection.appendChild(addChildMessage);
-            
-            const addChildButtons = document.createElement('div');
-            addChildButtons.className = 'add-child-buttons';
-            
-            const addChildButton = document.createElement('button');
-            addChildButton.className = 'add-child-btn';
-            addChildButton.innerHTML = '<i class="icon-plus"></i> Add Sub-page';
-            
-            addChildButton.addEventListener('click', () => {
-                showAddChildModal(spaceId, item);
-            });
-            
-            const generateTreeButton = document.createElement('button');
-            generateTreeButton.className = 'generate-tree-btn';
-            generateTreeButton.innerHTML = '<i class="icon-tree"></i> Generate Tree Structure';
-            
-            generateTreeButton.addEventListener('click', () => {
-                showGenerateTreeModal(spaceId, item);
-            });
-            
-            addChildButtons.appendChild(addChildButton);
-            addChildButtons.appendChild(generateTreeButton);
-            
-            addChildSection.appendChild(addChildButtons);
-            
-            contentPage.appendChild(addChildSection);
         }
         
-        // Add content page to container
-        pageContainer.appendChild(contentPage);
-        
-        // Replace current content with the new layout
+        // Replace current content with the node page
+        const contentArea = document.querySelector('.content');
         contentArea.innerHTML = '';
-        contentArea.appendChild(pageContainer);
+        contentArea.appendChild(contentPage);
         
         // Update document title
-        document.title = `${item.title} - ${currentSpace.name} - SelfLearn`;
-        document.getElementById('document-title').textContent = item.title;
-        
-        // Update breadcrumb in header
-        updateBreadcrumb(item.title, currentSpace.name);
-        
-        // Add click handlers to newly added elements
-        addKnowledgeItemClickHandlers();
+        document.title = `${nodeData.title} - SelfLearn`;
+        document.getElementById('document-title').textContent = nodeData.title;
     }
-
+    
     /**
-     * Create knowledge tree sidebar
-     * @param {Object} space - Current space
-     * @param {Object} activeItem - Currently active item
-     * @returns {HTMLElement} - Sidebar element
+     * Create breadcrumb for node navigation
+     * @param {Object} nodeData - Current node data
+     * @returns {HTMLElement} - Breadcrumb element
      */
-    function createKnowledgeTreeSidebar(space, activeItem) {
-        const sidebar = document.createElement('div');
-        sidebar.className = 'knowledge-tree-sidebar';
+    function createBreadcrumb(nodeData) {
+        // Find path to node
+        const path = findPathToNode(activeTreeData, nodeData.id);
         
-        // Add sidebar header
-        const header = document.createElement('div');
-        header.className = 'tree-sidebar-header';
-        header.innerHTML = `
-            <h3>${space.name}</h3>
-            <button class="collapse-sidebar-btn">◀</button>
-        `;
+        const breadcrumb = document.createElement('div');
+        breadcrumb.className = 'breadcrumb-nav';
         
-        // Add collapse button functionality
-        header.querySelector('.collapse-sidebar-btn').addEventListener('click', () => {
-            toggleTreeSidebar(sidebar);
-        });
+        let breadcrumbHTML = `<a href="#" class="to-dashboard">Dashboard</a>`;
+        breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
+        breadcrumbHTML += `<a href="#" class="to-tree">Knowledge Tree</a>`;
         
-        sidebar.appendChild(header);
-        
-        // Add search input
-        const search = document.createElement('div');
-        search.className = 'tree-search';
-        search.innerHTML = `
-            <input type="text" placeholder="Search pages...">
-            <button class="search-btn">🔍</button>
-        `;
-        
-        // Add search functionality
-        const searchInput = search.querySelector('input');
-        const searchBtn = search.querySelector('.search-btn');
-        
-        searchBtn.addEventListener('click', () => {
-            searchKnowledgeTree(searchInput.value);
-        });
-        
-        searchInput.addEventListener('keyup', (e) => {
-            if (e.key === 'Enter') {
-                searchKnowledgeTree(searchInput.value);
+        // Add path segments
+        if (path && path.length > 0) {
+            for (let i = 0; i < path.length - 1; i++) { // Skip the current node
+                const segment = path[i];
+                breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
+                breadcrumbHTML += `<a href="#" class="to-path-item" data-id="${segment.id}">${segment.title}</a>`;
             }
-        });
-        
-        sidebar.appendChild(search);
-        
-        // Create tree navigation
-        const treeContainer = document.createElement('div');
-        treeContainer.className = 'tree-container';
-        
-        // Generate tree from space items
-        const tree = generateTreeFromItems(space.items, activeItem);
-        treeContainer.appendChild(tree);
-        
-        sidebar.appendChild(treeContainer);
-        
-        // Add button to create new top-level item
-        const addButton = document.createElement('div');
-        addButton.className = 'add-top-item-btn';
-        addButton.innerHTML = `<i class="icon-plus"></i> New Page`;
-        
-        addButton.addEventListener('click', () => {
-            showAddKnowledgeModal(space.id);
-        });
-        
-        sidebar.appendChild(addButton);
-        
-        return sidebar;
-    }
-
-    /**
-     * Generate tree from items
-     * @param {Array} items - Items array
-     * @param {Object} activeItem - Currently active item
-     * @returns {HTMLElement} - Tree element
-     */
-    function generateTreeFromItems(items, activeItem) {
-        const treeList = document.createElement('ul');
-        treeList.className = 'tree-list';
-        
-        // Error handling for empty or invalid items
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            const emptyMessage = document.createElement('li');
-            emptyMessage.className = 'tree-empty';
-            emptyMessage.textContent = 'No pages yet';
-            treeList.appendChild(emptyMessage);
-            return treeList;
         }
         
-        // Generate tree nodes recursively
-        items.forEach(item => {
-            const treeItem = document.createElement('li');
-            treeItem.className = 'tree-item';
-            treeItem.dataset.itemId = item.id;
-            
-            // Check if this is the active item
-            const isActive = activeItem && activeItem.id === item.id;
-            if (isActive) {
-                treeItem.classList.add('active');
+        // Add current node
+        breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
+        breadcrumbHTML += `<span>${nodeData.title}</span>`;
+        
+        breadcrumb.innerHTML = breadcrumbHTML;
+        
+        // Add click handlers
+        breadcrumb.querySelector('.to-dashboard').addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.studySpaces && typeof window.studySpaces.showWelcomeDashboard === 'function') {
+                window.studySpaces.showWelcomeDashboard();
             }
-            
-            // Get status class
-            let statusClass = 'status-not-started';
-            if (item.status === 'completed') {
-                statusClass = 'status-completed';
-            } else if (item.status === 'in-progress') {
-                statusClass = 'status-in-progress';
-            }
-            
-            // Check if item has children
-            const hasChildren = item.children && Array.isArray(item.children) && item.children.length > 0;
-            
-            // Create item content
-            const itemContent = document.createElement('div');
-            itemContent.className = 'tree-item-content';
-            
-            // Add expand/collapse button if has children
-            if (hasChildren) {
-                const expandBtn = document.createElement('button');
-                expandBtn.className = 'expand-collapse-btn';
-                expandBtn.textContent = '▼';
-                
-                // Add click handler to expand/collapse
-                expandBtn.addEventListener('click', (e) => {
-                    e.stopPropagation(); // Prevent triggering item click
-                    toggleTreeItem(treeItem);
-                });
-                
-                itemContent.appendChild(expandBtn);
-            } else {
-                // Add spacer if no children
-                const spacer = document.createElement('span');
-                spacer.className = 'tree-spacer';
-                spacer.innerHTML = '&nbsp;&nbsp;';
-                itemContent.appendChild(spacer);
-            }
-            
-            // Add status indicator
-            const statusIndicator = document.createElement('span');
-            statusIndicator.className = `tree-status-indicator ${statusClass}`;
-            itemContent.appendChild(statusIndicator);
-            
-            // Add item title
-            const itemTitle = document.createElement('span');
-            itemTitle.className = 'tree-item-title';
-            itemTitle.textContent = item.title;
-            itemContent.appendChild(itemTitle);
-            
-            // Add click handler to navigate to item
-            itemContent.addEventListener('click', (e) => {
-                // Don't trigger if clicking on expand/collapse button
-                if (e.target.classList.contains('expand-collapse-btn')) return;
-                window.knowledgeTree.openKnowledgeItem(item.id);
-            });
-            
-            treeItem.appendChild(itemContent);
-            
-            // Add children if any
-            if (hasChildren) {
-                const childrenList = generateTreeFromItems(item.children, activeItem);
-                childrenList.classList.add('tree-children');
-                
-                // Check if this item or any child is active
-                const isActiveOrHasActiveChild = isActive || 
-                                            checkIfItemHasActiveChild(item, activeItem);
-                
-                // If not active or doesn't have active child, collapse it
-                if (!isActiveOrHasActiveChild) {
-                    childrenList.style.display = 'none';
-                    itemContent.querySelector('.expand-collapse-btn').textContent = '►';
-                }
-                
-                treeItem.appendChild(childrenList);
-            }
-            
-            treeList.appendChild(treeItem);
         });
         
-        return treeList;
+        breadcrumb.querySelector('.to-tree').addEventListener('click', (e) => {
+            e.preventDefault();
+            showTreeVisualization();
+        });
+        
+        // Add handlers for path items
+        breadcrumb.querySelectorAll('.to-path-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const nodeId = e.target.getAttribute('data-id');
+                const node = findNodeById(activeTreeData, nodeId);
+                if (node) {
+                    navigateToNodePage(node);
+                }
+            });
+        });
+        
+        return breadcrumb;
     }
-
+    
     /**
-     * Create child knowledge item element
-     * @param {Object} child - Child item
-     * @returns {HTMLElement} - Item element
+     * Find path to node in tree (DFS)
+     * @param {Object} root - Root node
+     * @param {string} nodeId - Target node ID
+     * @param {Array} currentPath - Current path (for recursion)
+     * @returns {Array|null} - Path to node or null if not found
      */
-    function createChildKnowledgeItem(child) {
+    function findPathToNode(root, nodeId, currentPath = []) {
+        // Clone path to avoid reference issues
+        const path = [...currentPath];
+        
+        // Add current node to path
+        path.push({
+            id: root.id,
+            title: root.title
+        });
+        
+        // Check if this is the target node
+        if (root.id === nodeId) {
+            return path;
+        }
+        
+        // Check children if any
+        if (root.children && Array.isArray(root.children)) {
+            for (const child of root.children) {
+                const result = findPathToNode(child, nodeId, path);
+                if (result) {
+                    return result;
+                }
+            }
+        }
+        
+        // Not found in this branch
+        return null;
+    }
+    
+    /**
+     * Find node by ID
+     * @param {Object} root - Root node
+     * @param {string} nodeId - Target node ID
+     * @returns {Object|null} - Node object or null if not found
+     */
+    function findNodeById(root, nodeId) {
+        // Check if this is the target node
+        if (root.id === nodeId) {
+            return root;
+        }
+        
+        // Check children if any
+        if (root.children && Array.isArray(root.children)) {
+            for (const child of root.children) {
+                const result = findNodeById(child, nodeId);
+                if (result) {
+                    return result;
+                }
+            }
+        }
+        
+        // Not found in this branch
+        return null;
+    }
+    
+    /**
+     * Create child item element
+     * @param {Object} child - Child node data
+     * @returns {HTMLElement} - Child item element
+     */
+    function createChildItem(child) {
         const itemElement = document.createElement('div');
         itemElement.className = 'child-knowledge-item';
-        itemElement.dataset.itemId = child.id;
-        
-        // Set status class
-        let statusClass = 'status-not-started';
-        if (child.status === 'completed') {
-            statusClass = 'status-completed';
-        } else if (child.status === 'in-progress') {
-            statusClass = 'status-in-progress';
-        }
+        itemElement.dataset.nodeId = child.id;
         
         // Count grandchildren if any
         const hasChildren = child.children && Array.isArray(child.children) && child.children.length > 0;
@@ -601,279 +291,167 @@
         
         // Add children counter if has children
         const childrenElement = hasChildren ? 
-            `<span class="children-counter">${childrenCount} sub-pages</span>` : '';
+            `<span class="children-counter">${childrenCount} sub-topics</span>` : '';
         
         itemElement.innerHTML = `
-            <div class="knowledge-status ${statusClass}"></div>
             <div class="knowledge-content">
                 <h3 class="knowledge-title">${child.title}</h3>
-                <p class="knowledge-subtitle">${child.subtitle || ''}</p>
+                <p class="knowledge-subtitle">${child.summary || ''}</p>
                 <div class="knowledge-meta">
                     ${childrenElement}
                 </div>
             </div>
         `;
         
-        // Add click event to open child item
+        // Add click event to navigate to child node
         itemElement.addEventListener('click', () => {
-            window.knowledgeTree.openKnowledgeItem(child.id);
+            navigateToNodePage(child);
         });
         
         return itemElement;
     }
-
+    
     /**
-     * Toggle tree item expansion
-     * @param {HTMLElement} treeItem - Tree item element
+     * Show the tree visualization
      */
-    function toggleTreeItem(treeItem) {
-        const childrenList = treeItem.querySelector('.tree-children');
-        const expandBtn = treeItem.querySelector('.expand-collapse-btn');
+    function showTreeVisualization() {
+        // Create visualization container
+        const vizContainer = document.createElement('div');
+        vizContainer.className = 'ai-window';
         
-        if (childrenList) {
-            if (childrenList.style.display === 'none') {
-                childrenList.style.display = 'block';
-                expandBtn.textContent = '▼';
-            } else {
-                childrenList.style.display = 'none';
-                expandBtn.textContent = '►';
-            }
-        }
-    }
-
-    /**
-     * Toggle tree sidebar
-     * @param {HTMLElement} sidebar - Sidebar element
-     */
-    function toggleTreeSidebar(sidebar) {
-        sidebar.classList.toggle('collapsed');
+        // Make sure width matches the document body
+        const docBodyWidth = document.querySelector('.body-area').offsetWidth;
+        vizContainer.style.width = docBodyWidth + 'px';
         
-        // Update button text
-        const btn = sidebar.querySelector('.collapse-sidebar-btn');
-        if (sidebar.classList.contains('collapsed')) {
-            btn.textContent = '►';
-        } else {
-            btn.textContent = '◀';
-        }
-        
-        // Update container layout
-        const container = sidebar.closest('.notebook-container');
-        if (container) {
-            container.classList.toggle('sidebar-collapsed');
-        }
-    }
-
-    /**
-     * Check if item has active child (recursively)
-     * @param {Object} item - Item to check
-     * @param {Object} activeItem - Currently active item
-     * @returns {boolean} - True if item has active child
-     */
-    function checkIfItemHasActiveChild(item, activeItem) {
-        if (!item.children || !Array.isArray(item.children) || !activeItem) {
-            return false;
-        }
-        
-        for (const child of item.children) {
-            if (child.id === activeItem.id) {
-                return true;
-            }
-            
-            if (checkIfItemHasActiveChild(child, activeItem)) {
-                return true;
-            }
-        }
-        
-        return false;
-    }
-
-    /**
-     * Search knowledge tree
-     * @param {string} searchText - Text to search for
-     */
-    function searchKnowledgeTree(searchText) {
-        if (!searchText || !searchText.trim()) return;
-        
-        // Simple alert for now - this can be expanded in the future
-        alert(`Searching for: "${searchText}"\n\nSearch functionality will be implemented in a future update.`);
-    }
-
-    /**
-     * Show modal to add new knowledge item
-     * @param {string} spaceId - Space ID
-     */
-    function showAddKnowledgeModal(spaceId) {
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header space-modal-header">
-                    <h3>Add Knowledge Item</h3>
-                    <button class="modal-close-btn">&times;</button>
+        vizContainer.innerHTML = `
+            <div class="ai-window-header">
+                <div class="window-drag-handle">
+                    <span>Knowledge Tree</span>
                 </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="item-title">Title</label>
-                        <input type="text" id="item-title" placeholder="e.g., JavaScript Closures">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-subtitle">Subtitle (Optional)</label>
-                        <input type="text" id="item-subtitle" placeholder="e.g., Understanding scope and closure concepts">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-content">Content (Optional)</label>
-                        <textarea id="item-content" rows="8" placeholder="Add your notes, code snippets, or other content here..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <div class="knowledge-status-selector">
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="not-started" checked>
-                                <span class="status-indicator status-not-started"></span>
-                                Not Started
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="in-progress">
-                                <span class="status-indicator status-in-progress"></span>
-                                In Progress
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="completed">
-                                <span class="status-indicator status-completed"></span>
-                                Completed
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button id="add-item-btn" class="btn btn-primary">Add Item</button>
-                        <button id="cancel-item-btn" class="btn">Cancel</button>
-                    </div>
+                <div class="window-controls">
+                    <button class="export-btn">Export</button>
+                    <button class="fullscreen-btn">Full Screen</button>
+                    <button class="close-btn">Close</button>
+                </div>
+            </div>
+            <div class="ai-window-body">
+                <div class="visualization-container">
+                    <svg width="100%" height="500" class="tree-svg"></svg>
+                </div>
+                <div class="more-options-panel" style="display: none;">
+                    <button class="export-json-btn">Export as JSON</button>
+                    <button class="export-markdown-btn">Export as Markdown</button>
+                    <button class="export-svg-btn">Export as SVG</button>
                 </div>
             </div>
         `;
         
-        document.body.appendChild(modal);
+        // Replace current content with the visualization
+        const contentArea = document.querySelector('.content');
+        contentArea.innerHTML = '';
+        contentArea.appendChild(vizContainer);
+        
+        // Create D3 visualization
+        if (window.treeVisualizer && typeof window.treeVisualizer.createVisualization === 'function') {
+            const svg = vizContainer.querySelector('svg');
+            window.treeVisualizer.createVisualization(svg, activeTreeData);
+            
+            // Add node click handler
+            svg.querySelectorAll('.node').forEach(node => {
+                node.addEventListener('click', function() {
+                    const nodeId = this.getAttribute('data-node-id');
+                    if (nodeId) {
+                        const nodeData = findNodeById(activeTreeData, nodeId);
+                        if (nodeData) {
+                            window.nodeNavigator.handleNodeClick(nodeData);
+                        }
+                    }
+                });
+            });
+        }
         
         // Add event listeners
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            modal.remove();
+        vizContainer.querySelector('.close-btn').addEventListener('click', function() {
+            vizContainer.remove();
         });
         
-        modal.querySelector('#cancel-item-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#add-item-btn').addEventListener('click', () => {
-            // Get form values
-            const title = document.getElementById('item-title').value.trim();
-            const subtitle = document.getElementById('item-subtitle').value.trim();
-            const content = document.getElementById('item-content').value;
-            const status = document.querySelector('input[name="item-status"]:checked').value;
+        vizContainer.querySelector('.fullscreen-btn').addEventListener('click', function() {
+            window.utils.toggleFullscreen(vizContainer, this);
             
-            // Validate
-            if (!title) {
-                alert('Please enter a title for your knowledge item');
-                return;
-            }
-            
-            // Create item ID from title (slug)
-            const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
-            
-            // Create item object
-            const newItem = {
-                id: id,
-                title: title,
-                subtitle: subtitle || '',
-                content: content || '',
-                status: status,
-                dateCreated: new Date().toISOString(),
-                dateUpdated: new Date().toISOString(),
-                children: [] // Add children array
-            };
-            
-            // Add to space and save to storage
-            const spaces = window.storage.getStudySpaces();
-            if (spaces && spaces[spaceId]) {
-                if (!spaces[spaceId].items) {
-                    spaces[spaceId].items = [];
-                }
-                spaces[spaceId].items.push(newItem);
-                window.storage.setStudySpaces(spaces);
-                
-                // Update current space
-                currentSpace = spaces[spaceId];
-                
-                // Close modal
-                modal.remove();
-                
-                // Navigate to the new item's content page
-                window.knowledgeTree.openKnowledgeItem(id);
+            // Re-create visualization with new dimensions
+            if (window.treeVisualizer && typeof window.treeVisualizer.createVisualization === 'function') {
+                const svg = vizContainer.querySelector('svg');
+                window.treeVisualizer.createVisualization(svg, activeTreeData);
             }
         });
         
-        // Close when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
+        vizContainer.querySelector('.export-btn').addEventListener('click', function() {
+            // Toggle export options panel
+            const panel = vizContainer.querySelector('.more-options-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        });
+        
+        // Setup export buttons
+        setupExportButtons(vizContainer);
+    }
+    
+    /**
+     * Setup export buttons
+     * @param {HTMLElement} container - Container element
+     */
+    function setupExportButtons(container) {
+        // Export as JSON
+        container.querySelector('.export-json-btn').addEventListener('click', function() {
+            const jsonString = JSON.stringify(activeTreeData, null, 2);
+            window.utils.downloadFile(jsonString, 'knowledge-tree.json', 'application/json');
+        });
+        
+        // Export as Markdown
+        container.querySelector('.export-markdown-btn').addEventListener('click', function() {
+            const markdown = convertTreeToMarkdown(activeTreeData);
+            window.utils.downloadFile(markdown, 'knowledge-tree.md', 'text/markdown');
+        });
+        
+        // Export as SVG
+        container.querySelector('.export-svg-btn').addEventListener('click', function() {
+            const svg = container.querySelector('svg');
+            if (window.treeVisualizer && typeof window.treeVisualizer.exportSvg === 'function') {
+                const svgData = window.treeVisualizer.exportSvg(svg);
+                window.utils.downloadFile(svgData, 'knowledge-tree.svg', 'image/svg+xml');
             }
         });
     }
-
+    
     /**
-     * Show modal to add child page
-     * @param {string} spaceId - Space ID
-     * @param {Object} parentItem - Parent item
+     * Show modal to edit node
+     * @param {Object} nodeData - Node data to edit
      */
-    function showAddChildModal(spaceId, parentItem) {
+    function showEditNodeModal(nodeData) {
         // Create modal
         const modal = document.createElement('div');
         modal.className = 'modal-overlay';
         modal.innerHTML = `
             <div class="modal-content">
-                <div class="modal-header space-modal-header">
-                    <h3>Add Sub-page</h3>
+                <div class="modal-header">
+                    <h3>Edit Knowledge Node</h3>
                     <button class="modal-close-btn">&times;</button>
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="item-parent">Parent</label>
-                        <input type="text" id="item-parent" value="${parentItem.title}" disabled>
+                        <label for="node-title">Title</label>
+                        <input type="text" id="node-title" value="${nodeData.title || ''}">
                     </div>
                     <div class="form-group">
-                        <label for="item-title">Title</label>
-                        <input type="text" id="item-title" placeholder="e.g., Advanced Concepts">
+                        <label for="node-summary">Summary</label>
+                        <textarea id="node-summary" rows="3">${nodeData.summary || ''}</textarea>
                     </div>
                     <div class="form-group">
-                        <label for="item-subtitle">Subtitle (Optional)</label>
-                        <input type="text" id="item-subtitle" placeholder="e.g., Deep dive into complex topics">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-content">Content (Optional)</label>
-                        <textarea id="item-content" rows="8" placeholder="Add your notes, code snippets, or other content here..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <div class="knowledge-status-selector">
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="not-started" checked>
-                                <span class="status-indicator status-not-started"></span>
-                                Not Started
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="in-progress">
-                                <span class="status-indicator status-in-progress"></span>
-                                In Progress
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="completed">
-                                <span class="status-indicator status-completed"></span>
-                                Completed
-                            </label>
-                        </div>
+                        <label for="node-content">Content</label>
+                        <textarea id="node-content" rows="10">${nodeData.content || ''}</textarea>
                     </div>
                     <div class="form-actions">
-                        <button id="add-child-btn" class="btn btn-primary">Add Sub-page</button>
+                        <button id="update-node-btn" class="btn btn-primary">Update</button>
+                        <button id="delete-node-btn" class="btn btn-danger">Delete</button>
                         <button id="cancel-btn" class="btn">Cancel</button>
                     </div>
                 </div>
@@ -891,360 +469,40 @@
             modal.remove();
         });
         
-        modal.querySelector('#add-child-btn').addEventListener('click', () => {
+        modal.querySelector('#update-node-btn').addEventListener('click', () => {
             // Get form values
-            const title = document.getElementById('item-title').value.trim();
-            const subtitle = document.getElementById('item-subtitle').value.trim();
-            const content = document.getElementById('item-content').value;
-            const status = document.querySelector('input[name="item-status"]:checked').value;
+            const title = document.getElementById('node-title').value.trim();
+            const summary = document.getElementById('node-summary').value.trim();
+            const content = document.getElementById('node-content').value.trim();
             
             // Validate
             if (!title) {
-                alert('Please enter a title for your sub-page');
+                alert('Please enter a title for the node');
                 return;
             }
             
-            // Create item ID from title (slug)
-            const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
-            
-            // Create child item object
-            const newChild = {
-                id: id,
-                title: title,
-                subtitle: subtitle || '',
-                content: content || '',
-                status: status,
-                dateCreated: new Date().toISOString(),
-                dateUpdated: new Date().toISOString(),
-                children: []
-            };
-            
-            // Add to parent item and save to storage
-            const spaces = window.storage.getStudySpaces();
-            if (spaces && spaces[spaceId]) {
-                // Find the parent item in the hierarchy
-                const updatedItems = addChildToHierarchy(spaces[spaceId].items, parentItem.id, newChild);
-                if (updatedItems) {
-                    // Update space items
-                    spaces[spaceId].items = updatedItems;
-                    
-                    // Save to storage
-                    window.storage.setStudySpaces(spaces);
-                    
-                    // Update current space
-                    currentSpace = spaces[spaceId];
-                    
-                    // Close modal
-                    modal.remove();
-                    
-                    // Navigate to the new child item
-                    window.knowledgeTree.openKnowledgeItem(id);
-                } else {
-                    alert('Failed to add sub-page. Parent item not found.');
-                }
-            }
-        });
-        
-        // Close when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    /**
-     * Add child to hierarchy (recursive)
-     * @param {Array} items - Items array
-     * @param {string} parentId - Parent ID
-     * @param {Object} newChild - New child item
-     * @returns {Array|null} - Updated items or null if parent not found
-     */
-    function addChildToHierarchy(items, parentId, newChild) {
-        if (!items || !Array.isArray(items)) return null;
-        
-        // Create a copy of the items array
-        const updatedItems = [...items];
-        
-        for (let i = 0; i < updatedItems.length; i++) {
-            // Check if this is the parent
-            if (updatedItems[i].id === parentId) {
-                // Initialize children array if it doesn't exist
-                if (!updatedItems[i].children) {
-                    updatedItems[i].children = [];
-                }
-                
-                // Add new child
-                updatedItems[i].children.push(newChild);
-                
-                // Update parent's dateUpdated
-                updatedItems[i].dateUpdated = new Date().toISOString();
-                
-                return updatedItems;
-            }
-            
-            // Check children if any
-            if (updatedItems[i].children && Array.isArray(updatedItems[i].children)) {
-                const updatedChildren = addChildToHierarchy(updatedItems[i].children, parentId, newChild);
-                if (updatedChildren) {
-                    updatedItems[i].children = updatedChildren;
-                    
-                    // Update parent's dateUpdated
-                    updatedItems[i].dateUpdated = new Date().toISOString();
-                    
-                    return updatedItems;
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Show modal to edit knowledge item
-     * @param {string} spaceId - Space ID
-     * @param {Object} item - Knowledge item to edit
-     */
-    function showEditKnowledgeModal(spaceId, item) {
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header space-modal-header">
-                    <h3>Edit Knowledge Item</h3>
-                    <button class="modal-close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="item-title">Title</label>
-                        <input type="text" id="item-title" value="${item.title}">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-subtitle">Subtitle (Optional)</label>
-                        <input type="text" id="item-subtitle" value="${item.subtitle || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-content">Content</label>
-                        <textarea id="item-content" rows="10" placeholder="Add your notes, code snippets, or other content here...">${item.content || ''}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <div class="knowledge-status-selector">
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="not-started" ${item.status === 'not-started' ? 'checked' : ''}>
-                                <span class="status-indicator status-not-started"></span>
-                                Not Started
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="in-progress" ${item.status === 'in-progress' ? 'checked' : ''}>
-                                <span class="status-indicator status-in-progress"></span>
-                                In Progress
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="completed" ${item.status === 'completed' ? 'checked' : ''}>
-                                <span class="status-indicator status-completed"></span>
-                                Completed
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button id="update-item-btn" class="btn btn-primary">Update</button>
-                        <button id="delete-item-btn" class="btn btn-danger">Delete</button>
-                        <button id="cancel-item-btn" class="btn">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Add event listeners
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#cancel-item-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#update-item-btn').addEventListener('click', () => {
-            // Get form values
-            const title = document.getElementById('item-title').value.trim();
-            const subtitle = document.getElementById('item-subtitle').value.trim();
-            const content = document.getElementById('item-content').value;
-            const status = document.querySelector('input[name="item-status"]:checked').value;
-            
-            // Validate
-            if (!title) {
-                alert('Please enter a title for your knowledge item');
-                return;
-            }
-            
-            // Update item in space
-            const spaces = window.storage.getStudySpaces();
-            if (spaces && spaces[spaceId]) {
-                // Find item index
-                const itemIndex = findItemIndexInHierarchy(spaces[spaceId].items, item.id);
-                if (itemIndex !== null) {
-                    // Update properties while preserving the children array
-                    const [parentArray, index] = itemIndex;
-                    parentArray[index].title = title;
-                    parentArray[index].subtitle = subtitle;
-                    parentArray[index].content = content;
-                    parentArray[index].status = status;
-                    parentArray[index].dateUpdated = new Date().toISOString();
-                    
-                    // Save to storage
-                    window.storage.setStudySpaces(spaces);
-                    
-                    // Update current space
-                    currentSpace = spaces[spaceId];
-                    
-                    // Close modal
-                    modal.remove();
-                    
-                    // Refresh content page with updated content
-                    window.knowledgeTree.openKnowledgeItem(item.id);
-                }
-            }
-        });
-        
-        modal.querySelector('#delete-item-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete this knowledge item? All children items will also be deleted.')) {
-                // Remove item from space
-                const spaces = window.storage.getStudySpaces();
-                if (spaces && spaces[spaceId]) {
-                    // Find item in hierarchy
-                    const itemIndex = findItemIndexInHierarchy(spaces[spaceId].items, item.id);
-                    
-                    if (itemIndex !== null) {
-                        // Remove item from its parent array
-                        const [parentArray, index] = itemIndex;
-                        parentArray.splice(index, 1);
-                        
-                        // Save to storage
-                        window.storage.setStudySpaces(spaces);
-                        
-                        // Update current space
-                        currentSpace = spaces[spaceId];
-                        
-                        // Close modal
-                        modal.remove();
-                        
-                        // Go back to space view
-                        window.studySpaces.openStudySpace(spaceId);
-                    }
-                }
-            }
-        });
-        
-        // Close when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-
-    /**
-     * Find item index in hierarchy (recursive search)
-     * @param {Array} items - Array of items to search
-     * @param {string} itemId - ID to find
-     * @returns {Array|null} - Array containing [parentArray, index] or null if not found
-     */
-    function findItemIndexInHierarchy(items, itemId) {
-        if (!items || !Array.isArray(items)) return null;
-        
-        // Try to find in the current level
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].id === itemId) {
-                return [items, i];
-            }
-            
-            // Check in children if any
-            if (items[i].children && Array.isArray(items[i].children)) {
-                const found = findItemIndexInHierarchy(items[i].children, itemId);
-                if (found) {
-                    return found;
-                }
-            }
-        }
-        
-        return null;
-    }
-
-    /**
-     * Show modal to generate tree using AI
-     * @param {string} spaceId - Space ID
-     * @param {Object} parentItem - Parent item
-     */
-    function showGenerateTreeModal(spaceId, parentItem) {
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header space-modal-header">
-                    <h3>Generate Knowledge Tree</h3>
-                    <button class="modal-close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="generate-prompt">What topic would you like to create a knowledge tree for?</label>
-                        <input type="text" id="generate-prompt" value="${parentItem.title}" placeholder="e.g., JavaScript Fundamentals">
-                    </div>
-                    <div class="form-group">
-                        <label for="generate-depth">Depth Level</label>
-                        <select id="generate-depth">
-                            <option value="1">1 level (Basic)</option>
-                            <option value="2" selected>2 levels (Standard)</option>
-                            <option value="3">3 levels (Detailed)</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="generate-model">AI Model</label>
-                        <select id="generate-model">
-                            <option value="gpt-4o" selected>OpenAI GPT-4o</option>
-                            <option value="gemini-2.0-flash">Google Gemini</option>
-                        </select>
-                    </div>
-                    <div class="form-actions">
-                        <button id="generate-tree-btn" class="btn btn-primary">Generate Tree</button>
-                        <button id="cancel-generate-btn" class="btn">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Add event listeners
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#cancel-generate-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#generate-tree-btn').addEventListener('click', () => {
-            // Get form values
-            const prompt = document.getElementById('generate-prompt').value.trim();
-            const depth = document.getElementById('generate-depth').value;
-            const model = document.getElementById('generate-model').value;
-            
-            // Validate
-            if (!prompt) {
-                alert('Please enter a topic for the knowledge tree');
-                return;
-            }
-            
-            // Alert for now - actual implementation would use the treeGenerator module
-            alert(`This will generate a knowledge tree for "${prompt}" with depth ${depth} using ${model} model.\n\nThis functionality requires API integration.`);
+            // Update node data
+            nodeData.title = title;
+            nodeData.summary = summary;
+            nodeData.content = content;
             
             // Close modal
             modal.remove();
+            
+            // Refresh the node page
+            navigateToNodePage(nodeData);
+        });
+        
+        modal.querySelector('#delete-node-btn').addEventListener('click', () => {
+            if (confirm('Are you sure you want to delete this node? All child nodes will also be deleted.')) {
+                deleteNode(nodeData.id);
+                
+                // Close modal
+                modal.remove();
+                
+                // Go back to tree view
+                showTreeVisualization();
+            }
         });
         
         // Close when clicking outside
@@ -1254,41 +512,211 @@
             }
         });
     }
-
-    /**
-     * Update breadcrumb with current location
-     * @param {string} itemName - Optional item name
-     * @param {string} spaceName - Optional space name
-     */
-    function updateBreadcrumb(itemName = null, spaceName = null) {
-        const breadcrumb = document.querySelector('.breadcrumb');
-        if (!breadcrumb) return;
-        
-        if (itemName && spaceName) {
-            breadcrumb.innerHTML = `
-                <span class="file-title">Dashboard / ${spaceName} / ${itemName}</span>
-            `;
-        } else if (spaceName) {
-            breadcrumb.innerHTML = `
-                <span class="file-title">Dashboard / ${spaceName}</span>
-            `;
-        } else {
-            breadcrumb.innerHTML = `
-                <span class="file-title">Dashboard</span>
-            `;
-        }
-    }
-
-    // Add a function to set current space directly (for integration)
-    window.knowledgeTree.setCurrentSpace = function(space) {
-        currentSpace = space;
-    };
-
-    // Add a function to set current item directly (for integration)
-    window.knowledgeTree.setCurrentItem = function(item) {
-        currentItem = item;
-    };
     
-    // Initialize on page load
-    document.addEventListener('DOMContentLoaded', window.knowledgeTree.initialize);
+    /**
+     * Delete node from tree
+     * @param {string} nodeId - ID of node to delete
+     * @returns {boolean} - True if node was deleted
+     */
+    function deleteNode(nodeId) {
+        // Can't delete root node
+        if (nodeId === activeTreeData.id) {
+            alert('Cannot delete the root node');
+            return false;
+        }
+        
+        // Find parent node
+        const result = findParentNode(activeTreeData, nodeId);
+        if (!result) {
+            return false;
+        }
+        
+        const [parentNode, index] = result;
+        
+        // Remove node from parent's children
+        parentNode.children.splice(index, 1);
+        
+        return true;
+    }
+    
+    /**
+     * Find parent node and index of child
+     * @param {Object} root - Root node
+     * @param {string} childId - Child node ID to find
+     * @returns {Array|null} - [parentNode, index] or null if not found
+     */
+    function findParentNode(root, childId) {
+        if (!root.children || !Array.isArray(root.children)) {
+            return null;
+        }
+        
+        // Check if child is direct descendant
+        for (let i = 0; i < root.children.length; i++) {
+            if (root.children[i].id === childId) {
+                return [root, i];
+            }
+        }
+        
+        // Recursively check children
+        for (const child of root.children) {
+            const result = findParentNode(child, childId);
+            if (result) {
+                return result;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Show modal to add child node
+     * @param {Object} parentNode - Parent node
+     */
+    function showAddChildModal(parentNode) {
+        // Create modal
+        const modal = document.createElement('div');
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Add Child Node</h3>
+                    <button class="modal-close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="parent-title">Parent</label>
+                        <input type="text" id="parent-title" value="${parentNode.title}" disabled>
+                    </div>
+                    <div class="form-group">
+                        <label for="node-title">Title</label>
+                        <input type="text" id="node-title" placeholder="Enter title">
+                    </div>
+                    <div class="form-group">
+                        <label for="node-summary">Summary</label>
+                        <textarea id="node-summary" rows="3" placeholder="Enter summary"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="node-content">Content</label>
+                        <textarea id="node-content" rows="10" placeholder="Enter content"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button id="add-node-btn" class="btn btn-primary">Add Child Node</button>
+                        <button id="cancel-btn" class="btn">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Add event listeners
+        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        modal.querySelector('#cancel-btn').addEventListener('click', () => {
+            modal.remove();
+        });
+        
+        modal.querySelector('#add-node-btn').addEventListener('click', () => {
+            // Get form values
+            const title = document.getElementById('node-title').value.trim();
+            const summary = document.getElementById('node-summary').value.trim();
+            const content = document.getElementById('node-content').value.trim();
+            
+            // Validate
+            if (!title) {
+                alert('Please enter a title for the node');
+                return;
+            }
+            
+            // Create node ID from title (slug)
+            const id = `${parentNode.id}-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${Date.now().toString(36).substr(2, 5)}`;
+            
+            // Create new node
+            const newNode = {
+                id: id,
+                title: title,
+                summary: summary,
+                content: content,
+                children: []
+            };
+            
+            // Add to parent's children
+            if (!parentNode.children) {
+                parentNode.children = [];
+            }
+            parentNode.children.push(newNode);
+            
+            // Close modal
+            modal.remove();
+            
+            // Refresh the parent node page
+            navigateToNodePage(parentNode);
+        });
+        
+        // Close when clicking outside
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.remove();
+            }
+        });
+    }
+    
+    /**
+     * Convert tree to Markdown
+     * @param {Object} treeData - Tree data
+     * @returns {string} - Markdown representation
+     */
+    function convertTreeToMarkdown(treeData) {
+        let markdown = `# ${treeData.title}\n\n`;
+        
+        if (treeData.summary) {
+            markdown += `${treeData.summary}\n\n`;
+        }
+        
+        if (treeData.content) {
+            markdown += `${treeData.content}\n\n`;
+        }
+        
+        // Recursively add child nodes
+        function addChildrenToMarkdown(node, level) {
+            let result = '';
+            
+            if (node.children && Array.isArray(node.children) && node.children.length > 0) {
+                for (const child of node.children) {
+                    // Add heading with appropriate level
+                    result += `\n${'#'.repeat(level + 1)} ${child.title}\n\n`;
+                    
+                    // Add summary if available
+                    if (child.summary) {
+                        result += `${child.summary}\n\n`;
+                    }
+                    
+                    // Add content if available
+                    if (child.content) {
+                        result += `${child.content}\n\n`;
+                    }
+                    
+                    // Add children recursively
+                    result += addChildrenToMarkdown(child, level + 1);
+                }
+            }
+            
+            return result;
+        }
+        
+        markdown += addChildrenToMarkdown(treeData, 1);
+        
+        return markdown;
+    }
+    
+    // Expose the functionality to the window object
+    window.nodeNavigator = {
+        initialize: window.nodeNavigator.initialize,
+        handleNodeClick: window.nodeNavigator.handleNodeClick,
+        showTreeVisualization: showTreeVisualization,
+        navigateToNodePage: navigateToNodePage,
+        findNodeById: findNodeById
+    };
 })();

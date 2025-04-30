@@ -233,6 +233,65 @@
             relatedConceptsList.appendChild(listItem);
         }
         
+        // Add View Notes button to the details panel
+        const actionsContainer = detailsPanel.querySelector('.node-actions');
+        
+        // Create container if it doesn't exist
+        if (!actionsContainer) {
+            const actionsDiv = document.createElement('div');
+            actionsDiv.className = 'node-actions';
+            
+            // Add after the tabs
+            const tabContent = detailsPanel.querySelector('.tab-content');
+            if (tabContent) {
+                tabContent.parentNode.insertBefore(actionsDiv, tabContent.nextSibling);
+            } else {
+                detailsPanel.appendChild(actionsDiv);
+            }
+        }
+        
+        // Get or create the actions container
+        const actions = detailsPanel.querySelector('.node-actions') || detailsPanel;
+        
+        // Remove any existing View Notes button
+        const existingBtn = actions.querySelector('.view-notes-btn');
+        if (existingBtn) {
+            existingBtn.remove();
+        }
+        
+        // Create View Notes button
+        const viewNotesBtn = document.createElement('button');
+        viewNotesBtn.className = 'view-notes-btn';
+        viewNotesBtn.textContent = 'View Notes';
+        viewNotesBtn.addEventListener('click', function() {
+            // Check if the node notes module is available
+            if (window.nodeNotes && typeof window.nodeNotes.showNotesModal === 'function') {
+                window.nodeNotes.showNotesModal(nodeData);
+            } else {
+                // Fallback if module not loaded
+                alert('Node notes functionality not available. Please include node-notes.js');
+                
+                // Try to load the module
+                const script = document.createElement('script');
+                script.src = 'js/knowledge-tools/node-notes.js';
+                script.onload = function() {
+                    // Initialize if needed
+                    if (window.nodeNotes && typeof window.nodeNotes.initialize === 'function') {
+                        window.nodeNotes.initialize();
+                    }
+                    
+                    // Show notes modal
+                    if (window.nodeNotes && typeof window.nodeNotes.showNotesModal === 'function') {
+                        window.nodeNotes.showNotesModal(nodeData);
+                    }
+                };
+                document.head.appendChild(script);
+            }
+        });
+        
+        // Add the button to the panel
+        actions.appendChild(viewNotesBtn);
+        
         // Show the panel
         detailsPanel.style.display = 'flex';
     }

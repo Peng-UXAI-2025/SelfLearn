@@ -1,252 +1,41 @@
-/* Knowledge Tree Hierarchy Styles */
+/* Knowledge Tree Navigation Styles */
 
-/* Notebook container with sidebar layout */
-.notebook-container {
-    display: flex;
-    width: 100%;
-    min-height: calc(100vh - 100px);
-}
-
-/* Sidebar styles */
-.knowledge-tree-sidebar {
-    width: 280px;
-    background-color: #f5f5f5;
-    border-right: 1px solid #ddd;
-    display: flex;
-    flex-direction: column;
-    transition: width 0.3s ease;
-    flex-shrink: 0;
-}
-
-.knowledge-tree-sidebar.collapsed {
-    width: 50px;
-}
-
-.tree-sidebar-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 15px;
-    border-bottom: 1px solid #ddd;
-    background-color: #233749;
-    color: white;
-}
-
-.tree-sidebar-header h3 {
-    margin: 0;
-    font-size: 16px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.collapse-sidebar-btn {
-    background: none;
-    border: none;
-    color: white;
+/* Tree Visualization Node Styles */
+.node {
     cursor: pointer;
-    font-size: 14px;
-    padding: 0;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    transition: opacity 0.2s;
 }
 
-.tree-search {
-    padding: 10px;
-    border-bottom: 1px solid #ddd;
-    display: flex;
-}
-
-.tree-search input {
-    flex: 1;
-    padding: 6px;
-    border: 1px solid #ddd;
-    border-radius: 4px 0 0 4px;
-}
-
-.search-btn {
-    background-color: #233749;
-    color: white;
-    border: none;
-    border-radius: 0 4px 4px 0;
-    padding: 6px 10px;
-    cursor: pointer;
-}
-
-.tree-container {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
-
-.add-top-item-btn {
-    padding: 10px 15px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background-color: #233749;
-    color: white;
-    cursor: pointer;
-    margin: 10px;
-    border-radius: 4px;
-    text-align: center;
-}
-
-.add-top-item-btn i {
-    margin-right: 5px;
-}
-
-/* Tree list styles */
-.tree-list {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-}
-
-.tree-children {
-    list-style-type: none;
-    padding-left: 20px;
-    margin: 5px 0 0 0;
-}
-
-.tree-item {
-    margin-bottom: 5px;
-}
-
-.tree-item.active > .tree-item-content {
-    background-color: #e6f2ff;
-    border-left: 3px solid #233749;
-}
-
-.tree-item-content {
-    display: flex;
-    align-items: center;
-    padding: 8px 5px;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: background-color 0.2s;
-}
-
-.tree-item-content:hover {
-    background-color: #f0f0f0;
-}
-
-.expand-collapse-btn {
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 0;
-    width: 20px;
-    height: 20px;
-    font-size: 10px;
-    color: #666;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.tree-spacer {
-    width: 20px;
-}
-
-.tree-status-indicator {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    margin-right: 8px;
-    flex-shrink: 0;
-}
-
-.tree-status-indicator.status-completed {
-    background-color: #2ecc71;
-}
-
-.tree-status-indicator.status-in-progress {
-    background-color: #f39c12;
-}
-
-.tree-status-indicator.status-not-started {
-    background-color: #95a5a6;
-}
-
-.tree-item-title {
-    flex: 1;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    font-size: 14px;
-}
-
-.tree-empty {
-    padding: 10px;
-    color: #777;
-    font-style: italic;
-}
-
-/* Content area styles with sidebar collapsed */
-.sidebar-collapsed .knowledge-content-page {
-    margin-left: 20px;
-}
-
-/* Knowledge tree content page */
-.knowledge-content-page {
-    flex: 1;
-    padding: 30px;
-    overflow-y: auto;
-}
-
-/* Children section styles */
-.children-section, 
-.add-child-section {
-    margin-top: 40px;
-    padding-top: 20px;
-    border-top: 1px solid #eee;
-}
-
-.children-title {
-    font-size: 24px;
-    margin-bottom: 20px;
+.knowledge-title {
+    font-weight: 500;
+    margin: 0 0 5px 0;
     color: #233749;
 }
 
-.children-list {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 25px;
+.knowledge-subtitle {
+    color: #666;
+    font-size: 14px;
+    margin: 0;
 }
 
-.child-knowledge-item {
-    display: flex;
-    align-items: center;
-    padding: 12px 15px;
-    border-radius: 6px;
-    background-color: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: transform 0.15s, box-shadow 0.15s;
-    cursor: pointer;
-    border-left: 3px solid #233749;
+.knowledge-meta {
+    margin-top: 5px;
+    font-size: 12px;
+    color: #999;
 }
 
-.child-knowledge-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 3px 6px rgba(0,0,0,0.15);
-}
-
+/* Add Child Button */
 .add-child-button {
-    border: 1px dashed #ccc;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 12px;
-    border-radius: 6px;
-    color: #777;
-    transition: border-color 0.2s, color 0.2s;
+    padding: 15px;
+    border: 1px dashed #ccc;
+    border-radius: 5px;
     margin-top: 10px;
     cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
 }
 
 .add-child-button:hover {
@@ -255,53 +44,281 @@
 }
 
 .add-child-button i {
-    margin-right: 10px;
+    margin-right: 5px;
 }
 
-.children-message {
-    color: #777;
-    margin-bottom: 20px;
-}
-
-.add-child-buttons {
-    display: flex;
-    gap: 15px;
+/* Node Details Panel */
+.knowledge-details {
     margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 5px;
+    border-left: 3px solid #233749;
 }
 
-.add-child-btn, 
-.generate-tree-btn {
-    padding: 10px 15px;
+.node-details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.node-details-header h3 {
+    margin: 0;
+    color: #233749;
+}
+
+.view-node-btn {
+    padding: 6px 12px;
     background-color: #233749;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 3px;
     cursor: pointer;
-    display: inline-flex;
-    align-items: center;
-    font-size: 14px;
+    transition: background-color 0.2s;
 }
 
-.add-child-btn i, 
-.generate-tree-btn i {
-    margin-right: 8px;
-}
-
-.add-child-btn:hover, 
-.generate-tree-btn:hover {
+.view-node-btn:hover {
     background-color: #1a2a38;
 }
 
-.children-counter {
-    background-color: #eef2f7;
-    color: #233749;
-    font-size: 12px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    margin-left: 8px;
+.node-summary {
+    margin-bottom: 10px;
+    font-style: italic;
+    color: #555;
 }
 
-/* Updated content header styles */
+.node-content {
+    color: #333;
+}
+
+/* Modal Styles for Edit/Add */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background-color: white;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    background-color: #233749;
+    color: white;
+    border-radius: 8px 8px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 18px;
+}
+
+.modal-close-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.form-group {
+    margin-bottom: 15px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: 500;
+}
+
+.form-group input,
+.form-group textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+.form-group textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn {
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: none;
+}
+
+.btn-primary {
+    background-color: #233749;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #e74c3c;
+    color: white;
+}
+
+.btn:not(.btn-primary):not(.btn-danger) {
+    background-color: #f5f5f5;
+    border: 1px solid #ddd;
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+    .content-header {
+        flex-direction: column;
+    }
+    
+    .content-actions {
+        margin-top: 10px;
+        flex-direction: row;
+    }
+    
+    .children-list {
+        display: block;
+    }
+    
+    .child-knowledge-item {
+        margin-bottom: 10px;
+    }
+    
+    .knowledge-content-page {
+        padding: 15px;
+    }
+}
+
+.node:hover {
+    opacity: 0.8;
+}
+
+.node circle {
+    fill: #557ba1;
+    stroke: #233749;
+    stroke-width: 1.5px;
+    transition: fill 0.2s, r 0.2s;
+}
+
+.node.root-node circle {
+    fill: #233749;
+    r: 7;
+}
+
+.node.leaf-node circle {
+    fill: #7ba1c7;
+}
+
+.node text {
+    font: 12px sans-serif;
+    fill: #333;
+    transition: font-weight 0.2s;
+}
+
+.node:hover text {
+    font-weight: bold;
+}
+
+.node.selected circle {
+    fill: #e67e22;
+    stroke-width: 2px;
+    r: 7;
+}
+
+.link {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1.5px;
+}
+
+/* Tooltip Styles */
+.d3-tooltip {
+    position: absolute;
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    pointer-events: none;
+    max-width: 300px;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+.d3-tooltip strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #233749;
+}
+
+/* Knowledge Content Page Styles */
+.knowledge-content-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 20px;
+    background-color: white;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    border-radius: 8px;
+}
+
+/* Breadcrumb Navigation */
+.breadcrumb-nav {
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #777;
+}
+
+.breadcrumb-nav a {
+    color: #233749;
+    text-decoration: none;
+}
+
+.breadcrumb-nav a:hover {
+    text-decoration: underline;
+}
+
+.breadcrumb-separator {
+    margin: 0 5px;
+    color: #ccc;
+}
+
+/* Content Header */
 .content-header {
     display: flex;
     justify-content: space-between;
@@ -311,30 +328,254 @@
     border-bottom: 1px solid #eee;
 }
 
-.header-buttons {
-    display: flex;
-    gap: 10px;
-    margin-top: 10px;
+.content-title h1 {
+    margin: 0 0 10px 0;
+    font-size: 28px;
+    color: #233749;
 }
 
-/* Responsive adjustments */
-@media (max-width: 768px) {
-    .notebook-container {
-        flex-direction: column;
-    }
-    
-    .knowledge-tree-sidebar {
-        width: 100%;
-        max-height: 300px;
-        overflow-y: auto;
-    }
-    
-    .knowledge-tree-sidebar.collapsed {
-        height: 40px;
-        overflow: hidden;
-    }
-    
-    .sidebar-collapsed .knowledge-content-page {
-        margin-left: 0;
-    }
+.content-subtitle {
+    color: #666;
+    font-size: 16px;
+    margin-bottom: 5px;
+}
+
+.content-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.content-actions button {
+    padding: 8px 15px;
+    background-color: #233749;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+.content-actions button i {
+    margin-right: 5px;
+}
+
+.content-actions button.back-to-tree-btn {
+    background-color: #557ba1;
+}
+
+/* Content Body */
+.content-body {
+    font-size: 16px;
+    line-height: 1.6;
+    color: #333;
+    margin-bottom: 30px;
+}
+
+.content-body h1,
+.content-body h2,
+.content-body h3 {
+    color: #233749;
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+}
+
+.content-body p {
+    margin-bottom: 1em;
+}
+
+.content-body ul,
+.content-body ol {
+    margin-bottom: 1em;
+    padding-left: 2em;
+}
+
+.content-body pre {
+    background-color: #f5f5f5;
+    padding: 15px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-family: monospace;
+}
+
+.content-body code {
+    background-color: #f5f5f5;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: monospace;
+}
+
+/* Children Section */
+.children-section {
+    margin-top: 40px;
+    padding-top: 20px;
+    border-top: 1px solid #eee;
+}
+
+.children-title {
+    font-size: 24px;
+    margin-bottom: 20px;
+    color: #233749;
+    display: flex;
+    align-items: center;
+}
+
+.children-counter {
+    display: inline-block;
+    background-color: #eef2f7;
+    color: #233749;
+    font-size: 14px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-left: 8px;
+}
+
+.children-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    margin-bottom: 25px;
+}
+
+.child-knowledge-item {
+    display: flex;
+    padding: 15px;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    border-left: 3px solid #233749;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+/* Add these styles to your CSS (e.g., in knowledge-tree.css) */
+
+/* Node Details Panel Styles */
+#node-details-panel {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    width: 400px;
+    max-width: 90vw;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    max-height: 80vh;
+    overflow: hidden;
+}
+
+.details-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px;
+    background-color: #233749;
+    color: white;
+    border-radius: 8px 8px 0 0;
+}
+
+.details-header h2 {
+    margin: 0;
+    font-size: 18px;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 320px;
+}
+
+.close-details-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+}
+
+.tab-container {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex: 1;
+}
+
+.tab-buttons {
+    display: flex;
+    border-bottom: 1px solid #eee;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 10px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    cursor: pointer;
+}
+
+.tab-btn.active {
+    border-bottom-color: #233749;
+    color: #233749;
+    font-weight: bold;
+}
+
+.tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 15px;
+}
+
+.tab-panel {
+    display: none;
+}
+
+.tab-panel.active {
+    display: block;
+}
+
+/* Node Actions */
+.node-actions {
+    padding: 15px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.view-notes-btn {
+    background-color: #233749;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    padding: 8px 15px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.view-notes-btn:hover {
+    background-color: #1a2a38;
+}
+
+/* Tooltip Styles */
+.d3-tooltip {
+    position: absolute;
+    background-color: white;
+    padding: 10px;
+    border-radius: 5px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    pointer-events: none;
+    max-width: 300px;
+    font-size: 12px;
+    z-index: 1000;
+}
+
+.d3-tooltip strong {
+    display: block;
+    margin-bottom: 5px;
+    color: #233749;
 }

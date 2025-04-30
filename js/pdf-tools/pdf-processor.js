@@ -712,3 +712,344 @@
         return treeData ? convertTreeToMarkdown(treeData.treeData) : null;
     };
 })();
+
+
+/**
+ * Integration Code
+ * Connects tree generation with node navigation
+ */
+
+// This code should be added to the end of pdf-processor.js, just before the closing })();
+
+/**
+ * Create tree visualization window with navigation
+ * @param {HTMLElement} originalWindow - Original window element
+ * @param {Object} treeData - Tree data
+ * @param {string} treeId - Tree ID
+ * @param {string} model - AI model used
+ */
+function createTreeVisualizationWindow(originalWindow, treeData, treeId, model) {
+    // If the enhanced tree visualizer is available, use it
+    if (window.enhancedTreeVisualizer && typeof window.enhancedTreeVisualizer.createTreeVisualizer === 'function') {
+        // Create a visualization container to replace the original window
+        const vizContainer = document.createElement('div');
+        vizContainer.className = 'ai-window';
+        vizContainer.dataset.treeId = treeId;
+        
+        // Make sure width matches the document body
+        const docBodyWidth = document.querySelector('.body-area').offsetWidth;
+        vizContainer.style.width = docBodyWidth + 'px';
+        
+        // Replace the original window with the visualization container
+        originalWindow.parentNode.replaceChild(vizContainer, originalWindow);
+        
+        // Create tree visualizer in the container
+        window.enhancedTreeVisualizer.createTreeVisualizer(vizContainer, treeData);
+        
+        // Initialize node navigator if available
+        if (window.nodeNavigator && typeof window.nodeNavigator.initialize === 'function') {
+            window.nodeNavigator.initialize(treeData);
+        }
+    } else {
+        // Fall back to the original implementation
+        fallbackCreateTreeVisualization(originalWindow, treeData, treeId, model);
+    }
+}
+
+/**
+ * Fallback implementation of tree visualization
+ * Used when the enhanced components aren't available
+ */
+function fallbackCreateTreeVisualization(originalWindow, treeData, treeId, model) {
+    // Create a visualization container to replace the original window
+    const vizContainer = document.createElement('div');
+    vizContainer.className = 'ai-window';
+    vizContainer.dataset.treeId = treeId;
+    
+    // Make sure width matches the document body
+    const docBodyWidth = document.querySelector('.body-area').offsetWidth;
+    vizContainer.style.width = docBodyWidth + 'px';
+    
+    vizContainer.innerHTML = `
+        <div class="ai-window-header">
+            <div class="window-drag-handle">
+                <span>PDF Knowledge Tree (${model === 'gpt-4o' ? 'OpenAI' : 'Gemini'})</span>
+            </div>
+            <div class="window-controls">
+                <button class="files-btn">Files</button>
+                <button class="more-options-btn">Export</button>
+                <button class="fullscreen-btn">Full Screen</button>
+                <button class="close-btn">Close</button>
+            </div>
+        </div>
+        <div class="ai-window-body">
+            <div class="visualization-container">
+                <svg width="100%" height="400" class="tree-svg"></svg>
+            </div>
+            <div class="more-options-panel" style="display: none;">
+                <button class="export-json-btn">Export as JSON</button>
+                <button class="export-markdown-btn">Export as Markdown</button>
+                <button class="export-svg-btn">Export as SVG</button>
+            </div>
+            <div class="knowledge-details" style="display: none;"></div>
+        </div>
+    `;
+    
+    // Replace the original window with the visualization
+    originalWindow.parentNode.replaceChild(vizContainer, originalWindow);
+    
+    // Create D3 visualization
+    window.treeVisualizer.createVisualization(vizContainer.querySelector('svg'), treeData);
+    
+    // Add drag handle functionality
+    const dragHandle = vizContainer.querySelector('.window-drag-handle');
+    if (dragHandle) {
+        dragHandle.addEventListener('mousedown', function(e) {
+            window.webNotebook.handleDragStart(e, vizContainer);
+        });
+    }
+    
+    // Add event listeners
+    vizContainer.querySelector('.close-btn').addEventListener('click', function() {
+        vizContainer.remove();
+    });
+    
+    vizContainer.querySelector('.fullscreen-btn').addEventListener('click', function() {
+        window.utils.toggleFullscreen(vizContainer, this);
+        
+        // Re-create visualization with new dimensions
+        window.treeVisualizer.createVisualization(vizContainer.querySelector('svg'), treeData);
+    });
+    
+    vizContainer.querySelector('.files-btn').addEventListener('click', function() {
+        showTreeFiles(treeId);
+    });
+    
+    vizContainer.querySelector('.more-options-btn').addEventListener('click', function() {
+        window.webNotebook.toggleMoreOptionsPanel(vizContainer);
+    });
+    
+    // Setup export buttons
+    setupExportButtons(vizContainer, treeId);
+}
+
+// Load the required scripts
+function loadNavigationComponents() {
+    return new Promise((resolve, reject) => {
+        // Check if components are already loaded
+        if (window.nodeNavigator && window.enhancedTreeVisualizer) {
+            resolve();
+            return;
+        }
+        
+        // Create script elements
+        const nodeNavigatorScript = document.createElement('script');
+        nodeNavigatorScript.src = 'js/navigation/knowledge-node-navigator.js';
+        
+        const enhancedVisualizerScript = document.createElement('script');
+        enhancedVisualizerScript.src = 'js/navigation/enhanced-tree-visualizer.js';
+        
+        // Add load handlers
+        let loadedCount = 0;
+        const onScriptLoad = () => {
+            loadedCount++;
+            if (loadedCount === 2) {
+                resolve();
+            }
+        };
+        
+        nodeNavigatorScript.onload = onScriptLoad;
+        enhancedVisualizerScript.onload = onScriptLoad;
+        
+        nodeNavigatorScript.onerror = reject;
+        enhancedVisualizerScript.onerror = reject;
+        
+        // Add to document
+        document.head.appendChild(nodeNavigatorScript);
+        document.head.appendChild(enhancedVisualizerScript);
+        
+        // Set timeout in case scripts fail to load
+        setTimeout(() => {
+            // If not resolved yet, resolve anyway with what we have
+            resolve();
+        }, 2000);
+    });
+}
+
+// Override the generateKnowledgeTree function to load components first
+const originalGenerateKnowledgeTree = window.pdfProcessor.generateKnowledgeTree;
+window.pdfProcessor.generateKnowledgeTree = async function(windowElement) {
+    try {
+        // Try to load navigation components 
+        await loadNavigationComponents();
+    } catch (e) {
+        console.warn("Could not load navigation components:", e);
+    }
+    
+    // Call the original function
+    return originalGenerateKnowledgeTree(windowElement);
+};
+
+// Add CSS styles for knowledge node navigation
+function addNavigationStyles() {
+    const style = document.createElement('style');
+    style.id = 'knowledge-navigation-styles';
+    style.textContent = `
+        /* Node navigation styles */
+        .node {
+            cursor: pointer;
+        }
+        
+        .node circle {
+            fill: #557ba1;
+            stroke: #233749;
+            stroke-width: 1.5px;
+        }
+        
+        .node.root-node circle {
+            fill: #233749;
+        }
+        
+        .node.leaf-node circle {
+            fill: #7ba1c7;
+        }
+        
+        .node text {
+            font: 12px sans-serif;
+        }
+        
+        .node.selected circle {
+            fill: #233749;
+            stroke-width: 2px;
+        }
+        
+        .node-details-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .node-details-header h3 {
+            margin: 0;
+            font-size: 18px;
+        }
+        
+        .view-node-btn {
+            padding: 5px 10px;
+            background-color: #233749;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        
+        .node-summary {
+            margin-bottom: 15px;
+            font-style: italic;
+            color: #666;
+        }
+        
+        .knowledge-content-page {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .breadcrumb-nav {
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: #777;
+        }
+        
+        .breadcrumb-nav a {
+            color: #233749;
+            text-decoration: none;
+        }
+        
+        .breadcrumb-nav a:hover {
+            text-decoration: underline;
+        }
+        
+        .breadcrumb-separator {
+            margin: 0 5px;
+            color: #ccc;
+        }
+        
+        .child-knowledge-item {
+            display: flex;
+            padding: 15px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            border-left: 3px solid #233749;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .child-knowledge-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+        }
+        
+        .children-section {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+        }
+        
+        .children-title {
+            font-size: 24px;
+            margin-bottom: 20px;
+        }
+        
+        .children-counter {
+            display: inline-block;
+            background-color: #eef2f7;
+            color: #233749;
+            font-size: 14px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            margin-left: 8px;
+        }
+        
+        .add-child-button {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+            border: 1px dashed #ccc;
+            border-radius: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+        
+        .add-child-button:hover {
+            border-color: #233749;
+            color: #233749;
+        }
+    `;
+    
+    document.head.appendChild(style);
+}
+
+// Add the styles when the document is ready
+document.addEventListener('DOMContentLoaded', addNavigationStyles);
+
+// Initialize node navigator functions if not already loaded
+if (!window.nodeNavigator) {
+    window.nodeNavigator = {
+        initialize: function(treeData) {
+            console.warn("Node navigator not fully loaded. Basic functionality will be available.");
+        },
+        handleNodeClick: function(nodeData) {
+            console.warn("Node navigation not available. Implement with enhanced tree visualizer.");
+            // Show basic node information
+            alert(`Node: ${nodeData.title}\n\n${nodeData.summary || ''}`);
+        }
+    };
+}

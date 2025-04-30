@@ -17,6 +17,38 @@ document.addEventListener("DOMContentLoaded", function () {
       clipboardMonitorActive: false,
       selectedModel: "gpt-4o", // Default model
     };
+
+    // Node details panel tab functionality
+const tabButtons = document.querySelectorAll('.tab-btn');
+if (tabButtons.length > 0) {
+    tabButtons.forEach((btn) => {
+        btn.addEventListener('click', function() {
+            // Remove active class from all tabs
+            document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
+            // Add active class to clicked tab
+            this.classList.add('active');
+
+            // Hide all tab panels
+            document.querySelectorAll('.tab-panel').forEach((p) => p.classList.remove('active'));
+            // Show selected tab panel
+            const tabId = this.getAttribute('data-tab') + '-tab';
+            document.getElementById(tabId).classList.add('active');
+        });
+    });
+}
+
+// Close node details panel
+const closeDetailsBtn = document.querySelector('.close-details-btn');
+if (closeDetailsBtn) {
+    closeDetailsBtn.addEventListener('click', function() {
+        document.getElementById('node-details-panel').style.display = 'none';
+        // Deselect node in visualization if it exists
+        if (window.webNotebook.app.selectedNode) {
+            d3.select(window.webNotebook.app.selectedNode).classed('selected', false);
+            window.webNotebook.app.selectedNode = null;
+        }
+    });
+}
   
     // Initialize the application
     initializeApp();
@@ -1023,7 +1055,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   });
 
-  
+
 // Initialize knowledge tree navigation
 if (window.knowledgeTree && typeof window.knowledgeTree.initialize === 'function') {
     window.knowledgeTree.initialize();

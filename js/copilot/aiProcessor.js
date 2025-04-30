@@ -3,6 +3,8 @@
  * Handles AI processing of content for the Copilot functionality
  */
 
+// Initialize namespace
+window.WebNotebook = window.WebNotebook || {};
 WebNotebook.Copilot = WebNotebook.Copilot || {};
 WebNotebook.Copilot.AIProcessor = (function() {
     // Private variables
@@ -28,14 +30,18 @@ WebNotebook.Copilot.AIProcessor = (function() {
         processButtons.forEach(button => {
             button.addEventListener('click', function() {
                 const action = this.getAttribute('data-action');
-                const capturedText = document.getElementById('captured-text').textContent;
+                const capturedText = document.getElementById('captured-text');
                 
-                if (capturedText.trim()) {
+                if (capturedText && capturedText.textContent.trim()) {
                     if (action === 'custom') {
-                        const customPrompt = document.getElementById('custom-prompt').value;
-                        processContent(capturedText, 'custom', customPrompt);
+                        const customPrompt = document.getElementById('custom-prompt');
+                        if (customPrompt) {
+                            processContent(capturedText.textContent, 'custom', customPrompt.value);
+                        } else {
+                            processContent(capturedText.textContent, 'custom', '');
+                        }
                     } else {
-                        processContent(capturedText, action);
+                        processContent(capturedText.textContent, action);
                     }
                 } else {
                     alert('No content captured yet. Copy some text first or enter it manually.');
@@ -140,13 +146,15 @@ WebNotebook.Copilot.AIProcessor = (function() {
             }
             
             // Add to history
-            WebNotebook.Copilot.HistoryTracker.addHistoryItem({
-                type: 'process',
-                action: item.action,
-                content: item.content,
-                result: result,
-                timestamp: new Date().toISOString()
-            });
+            if (WebNotebook.Copilot.HistoryTracker && WebNotebook.Copilot.HistoryTracker.addHistoryItem) {
+                WebNotebook.Copilot.HistoryTracker.addHistoryItem({
+                    type: 'process',
+                    action: item.action,
+                    content: item.content,
+                    result: result,
+                    timestamp: new Date().toISOString()
+                });
+            }
         }, 1500); // Simulate processing time
     }
     
@@ -466,22 +474,26 @@ WebNotebook.Copilot.AIProcessor = (function() {
                 const nodeType = result.action === 'insert' ? result.nodeType : 'file';
                 
                 // Get the selected node (as potential parent)
-                const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
-                
-                // Create the new node
-                const newNodeId = WebNotebook.Interface.FileManager.createNode(
-                    nodeName,
-                    nodeType,
-                    selectedNode
-                );
-                
-                // Show feedback
-                this.textContent = 'Saved!';
-                setTimeout(() => {
-                    this.textContent = 'Save as Note';
-                    // Close the result display
-                    resultDisplay.parentNode.removeChild(resultDisplay);
-                }, 1500);
+                if (WebNotebook.Interface && WebNotebook.Interface.FileManager) {
+                    const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
+                    
+                    // Create the new node
+                    const newNodeId = WebNotebook.Interface.FileManager.createNode(
+                        nodeName,
+                        nodeType,
+                        selectedNode
+                    );
+                    
+                    // Show feedback
+                    this.textContent = 'Saved!';
+                    setTimeout(() => {
+                        this.textContent = 'Save as Note';
+                        // Close the result display
+                        resultDisplay.parentNode.removeChild(resultDisplay);
+                    }, 1500);
+                } else {
+                    alert('File Manager not available');
+                }
             });
         }
         
@@ -489,23 +501,27 @@ WebNotebook.Copilot.AIProcessor = (function() {
         const insertBtn = resultDisplay.querySelector('.insert-node-btn');
         if (insertBtn) {
             insertBtn.addEventListener('click', function() {
-                // Get the knowledge tree root or current node
-                const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
-                
-                // Create a new knowledge node
-                const newNodeId = WebNotebook.Interface.FileManager.createNode(
-                    result.nodeName,
-                    'knowledge',
-                    selectedNode
-                );
-                
-                // Show feedback
-                this.textContent = 'Added!';
-                setTimeout(() => {
-                    this.textContent = 'Add to Knowledge Tree';
-                    // Close the result display
-                    resultDisplay.parentNode.removeChild(resultDisplay);
-                }, 1500);
+                if (WebNotebook.Interface && WebNotebook.Interface.FileManager) {
+                    // Get the knowledge tree root or current node
+                    const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
+                    
+                    // Create a new knowledge node
+                    const newNodeId = WebNotebook.Interface.FileManager.createNode(
+                        result.nodeName,
+                        'knowledge',
+                        selectedNode
+                    );
+                    
+                    // Show feedback
+                    this.textContent = 'Added!';
+                    setTimeout(() => {
+                        this.textContent = 'Add to Knowledge Tree';
+                        // Close the result display
+                        resultDisplay.parentNode.removeChild(resultDisplay);
+                    }, 1500);
+                } else {
+                    alert('File Manager not available');
+                }
             });
         }
     }
@@ -559,6 +575,7 @@ WebNotebook.Copilot.AIProcessor = (function() {
         initialize,
         analyzeContent,
         processContent,
-        processWithCustomPrompt
+        processWithCustomPrompt,
+        displayProcessingResult
     };
 })();

@@ -3,14 +3,15 @@
  * Contains utility functions and namespaces used throughout the application
  */
 
-// Create the Utils namespace if it doesn't exist
-WebNotebook.Utils = WebNotebook.Utils || {};
-
-// Storage namespace is directly imported in the existing modules
-WebNotebook.Utils.Storage = WebNotebook.Utils.Storage || {};
-
 // Initialize WebNotebook namespace if it doesn't exist
+window.WebNotebook = window.WebNotebook || {};
+
+// Create necessary namespaces
+WebNotebook.Utils = WebNotebook.Utils || {};
+WebNotebook.Utils.Storage = WebNotebook.Utils.Storage || {};
+WebNotebook.Interface = WebNotebook.Interface || {};
 WebNotebook.KnowledgeTree = WebNotebook.KnowledgeTree || {};
+WebNotebook.Copilot = WebNotebook.Copilot || {};
 
 /**
  * Initialize the Knowledge Tree
@@ -19,11 +20,21 @@ WebNotebook.KnowledgeTree.initialize = function() {
     console.log('Knowledge Tree module initialized');
     
     // Initialize sub-modules
-    WebNotebook.KnowledgeTree.NodeTypes.loadCustomNodeTypes();
-    WebNotebook.KnowledgeTree.TreeEditor.initialize();
-    WebNotebook.KnowledgeTree.Visualizer.initialize();
-    WebNotebook.KnowledgeTree.ExportManager.initialize();
-    WebNotebook.KnowledgeTree.AIOrganizer.initialize();
+    if (WebNotebook.KnowledgeTree.NodeTypes) {
+        WebNotebook.KnowledgeTree.NodeTypes.loadCustomNodeTypes();
+    }
+    if (WebNotebook.KnowledgeTree.TreeEditor) {
+        WebNotebook.KnowledgeTree.TreeEditor.initialize();
+    }
+    if (WebNotebook.KnowledgeTree.Visualizer) {
+        WebNotebook.KnowledgeTree.Visualizer.initialize();
+    }
+    if (WebNotebook.KnowledgeTree.ExportManager) {
+        WebNotebook.KnowledgeTree.ExportManager.initialize();
+    }
+    if (WebNotebook.KnowledgeTree.AIOrganizer) {
+        WebNotebook.KnowledgeTree.AIOrganizer.initialize();
+    }
 };
 
 /**

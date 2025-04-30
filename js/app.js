@@ -3,34 +3,65 @@
  * Main JavaScript file that initializes the application and integrates all modules
  */
 
-// Application namespace
-const WebNotebook = (function() {
+// Initialize the application namespace
+window.WebNotebook = window.WebNotebook || {};
+
+// Main Application Module
+WebNotebook.App = (function() {
     // Private variables 
     let currentDocument = null;
     let isInitialized = false;
 
-    // Initialize the application when DOM is ready
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('WebNotebook application initialized');
+    /**
+     * Initialize the application when DOM is ready
+     */
+    function initialize() {
+        console.log('WebNotebook application starting initialization');
+        
+        // Check if Utils and Storage are available
+        if (!WebNotebook.Utils || !WebNotebook.Utils.Storage) {
+            console.error('Required modules not loaded. Check script loading order.');
+            return;
+        }
         
         // Initialize storage first
         WebNotebook.Utils.Storage.initialize();
         
         // Initialize UI components
-        WebNotebook.Interface.FileManager.initialize();
-        WebNotebook.Interface.ViewModes.initialize();
-        WebNotebook.Interface.ContextMenu.initialize();
-        WebNotebook.Interface.DragDrop.initialize();
-        WebNotebook.Interface.RoadmapTracker.initialize();
+        if (WebNotebook.Interface.FileManager) {
+            WebNotebook.Interface.FileManager.initialize();
+        }
+        
+        if (WebNotebook.Interface.ViewModes) {
+            WebNotebook.Interface.ViewModes.initialize();
+        }
+        
+        if (WebNotebook.Interface.ContextMenu) {
+            WebNotebook.Interface.ContextMenu.initialize();
+        }
+        
+        if (WebNotebook.Interface.DragDrop) {
+            WebNotebook.Interface.DragDrop.initialize();
+        }
+        
+        if (WebNotebook.Interface.RoadmapTracker) {
+            WebNotebook.Interface.RoadmapTracker.initialize();
+        }
         
         // Initialize search functionality
-        WebNotebook.Utils.Search.initialize();
+        if (WebNotebook.Utils.Search) {
+            WebNotebook.Utils.Search.initialize();
+        }
         
         // Initialize AI Copilot
-        WebNotebook.Copilot.initialize();
+        if (WebNotebook.Copilot && WebNotebook.Copilot.initialize) {
+            WebNotebook.Copilot.initialize();
+        }
         
         // Initialize Knowledge Tree
-        WebNotebook.KnowledgeTree.initialize();
+        if (WebNotebook.KnowledgeTree) {
+            WebNotebook.KnowledgeTree.initialize();
+        }
         
         // Add event listeners to all common UI elements
         addGlobalEventListeners();
@@ -39,52 +70,69 @@ const WebNotebook = (function() {
         loadLastDocument();
         
         isInitialized = true;
-    });
+        console.log('WebNotebook application initialization completed');
+    }
     
     /**
      * Add event listeners to global UI elements
      */
     function addGlobalEventListeners() {
         // Header elements
-        document.getElementById('document-title').addEventListener('input', updateDocumentTitle);
-        document.getElementById('document-title').addEventListener('blur', saveCurrentDocument);
+        const documentTitle = document.getElementById('document-title');
+        if (documentTitle) {
+            documentTitle.addEventListener('input', updateDocumentTitle);
+            documentTitle.addEventListener('blur', saveCurrentDocument);
+        }
         
         // Menu toggle
-        document.getElementById('menu-toggle').addEventListener('click', toggleSidebar);
+        const menuToggle = document.getElementById('menu-toggle');
+        if (menuToggle) {
+            menuToggle.addEventListener('click', toggleSidebar);
+        }
         
         // Formatting tools
         initializeFormattingTools();
         
         // AI tools dropdown
-        document.getElementById('ai-tools-btn').addEventListener('click', toggleAIDropdown);
+        const aiToolsBtn = document.getElementById('ai-tools-btn');
+        if (aiToolsBtn) {
+            aiToolsBtn.addEventListener('click', toggleAIDropdown);
+        }
         
         // Document body
         const documentBody = document.getElementById('document-body');
-        documentBody.addEventListener('focus', function() {
-            this.classList.add('editing');
-        });
-        
-        documentBody.addEventListener('blur', function() {
-            this.classList.remove('editing');
-            saveCurrentDocument();
-        });
-        
-        documentBody.addEventListener('input', function() {
-            // Auto-save after a delay
-            debounce(saveCurrentDocument, 1000)();
-        });
+        if (documentBody) {
+            documentBody.addEventListener('focus', function() {
+                this.classList.add('editing');
+            });
+            
+            documentBody.addEventListener('blur', function() {
+                this.classList.remove('editing');
+                saveCurrentDocument();
+            });
+            
+            documentBody.addEventListener('input', function() {
+                // Auto-save after a delay
+                if (WebNotebook.Utils) {
+                    WebNotebook.Utils.debounce(saveCurrentDocument, 1000)();
+                } else {
+                    // Fallback if Utils not loaded
+                    setTimeout(saveCurrentDocument, 1000);
+                }
+            });
+        }
         
         // Global click handler for closing dropdowns
         document.addEventListener('click', function(event) {
             // Close AI dropdown if clicking outside
             if (!event.target.matches('#ai-tools-btn') && !event.target.closest('#ai-dropdown')) {
                 const dropdown = document.getElementById('ai-dropdown');
-                if (dropdown.style.display === 'block') {
+                if (dropdown && dropdown.style.display === 'block') {
                     dropdown.style.display = 'none';
                 }
             }
             
-            // Close other open dropdowns or menus
+            // Close other open menus
             closeOpenMenus(event);
         });
         
@@ -92,52 +140,53 @@ const WebNotebook = (function() {
         document.addEventListener('keydown', handleKeyboardShortcuts);
         
         // Tree/Icon view toggle buttons
-        document.getElementById('tree-view-btn').addEventListener('click', function() {
-            WebNotebook.Interface.ViewModes.switchViewMode('tree');
-        });
+        const treeViewBtn = document.getElementById('tree-view-btn');
+        const iconViewBtn = document.getElementById('icon-view-btn');
         
-        document.getElementById('icon-view-btn').addEventListener('click', function() {
-            WebNotebook.Interface.ViewModes.switchViewMode('icon');
-        });
+        if (treeViewBtn && WebNotebook.Interface.ViewModes) {
+            treeViewBtn.addEventListener('click', function() {
+                WebNotebook.Interface.ViewModes.switchViewMode('tree');
+            });
+        }
+        
+        if (iconViewBtn && WebNotebook.Interface.ViewModes) {
+            iconViewBtn.addEventListener('click', function() {
+                WebNotebook.Interface.ViewModes.switchViewMode('icon');
+            });
+        }
         
         // AI Copilot button
-        document.getElementById('copilot-btn').addEventListener('click', function() {
-            WebNotebook.Copilot.toggleCopilot();
-        });
+        const copilotBtn = document.getElementById('copilot-btn');
+        if (copilotBtn && WebNotebook.Copilot) {
+            copilotBtn.addEventListener('click', function() {
+                WebNotebook.Copilot.toggleCopilot();
+            });
+        }
         
         // Doc Summary button
-        document.getElementById('doc-summary-btn').addEventListener('click', showDocSummaryWindow);
+        const docSummaryBtn = document.getElementById('doc-summary-btn');
+        if (docSummaryBtn) {
+            docSummaryBtn.addEventListener('click', showDocSummaryWindow);
+        }
         
         // AI Assistant button
-        document.getElementById('ai-assistant-btn').addEventListener('click', showAIAssistantWindow);
+        const aiAssistantBtn = document.getElementById('ai-assistant-btn');
+        if (aiAssistantBtn) {
+            aiAssistantBtn.addEventListener('click', showAIAssistantWindow);
+        }
         
         // Summarize Text button
-        document.getElementById('summarize-btn').addEventListener('click', function() {
-            const selectedText = getSelectedText();
-            if (selectedText) {
-                WebNotebook.Copilot.processManualText(selectedText);
-            } else {
-                alert('Please select some text to summarize.');
-            }
-        });
-    }
-    
-    /**
-     * Debounce function to limit how often a function is called
-     * @param {Function} func - The function to debounce
-     * @param {number} wait - The time to wait in milliseconds
-     * @returns {Function} - Debounced function
-     */
-    function debounce(func, wait) {
-        let timeout;
-        return function() {
-            const context = this;
-            const args = arguments;
-            clearTimeout(timeout);
-            timeout = setTimeout(function() {
-                func.apply(context, args);
-            }, wait);
-        };
+        const summarizeBtn = document.getElementById('summarize-btn');
+        if (summarizeBtn && WebNotebook.Copilot) {
+            summarizeBtn.addEventListener('click', function() {
+                const selectedText = getSelectedText();
+                if (selectedText) {
+                    WebNotebook.Copilot.processManualText(selectedText);
+                } else {
+                    alert('Please select some text to summarize.');
+                }
+            });
+        }
     }
     
     /**
@@ -180,17 +229,17 @@ const WebNotebook = (function() {
         }
         
         // Ctrl/Cmd + F to search
-        if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'f' && WebNotebook.Utils.Search) {
             e.preventDefault();
             WebNotebook.Utils.Search.showSearchUI();
         }
         
         // Ctrl/Cmd + C to capture selected text when copilot is active
-        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && WebNotebook.Copilot.isMonitoring()) {
+        if ((e.ctrlKey || e.metaKey) && e.key === 'c' && WebNotebook.Copilot && WebNotebook.Copilot.isMonitoring && WebNotebook.Copilot.isMonitoring()) {
             // Let the default copy happen first
             setTimeout(() => {
                 const selectedText = getSelectedText();
-                if (selectedText) {
+                if (selectedText && WebNotebook.Copilot.ClipboardMonitor) {
                     WebNotebook.Copilot.ClipboardMonitor.manualCapture(selectedText);
                 }
             }, 100);
@@ -220,7 +269,9 @@ const WebNotebook = (function() {
      */
     function updateDocumentTitle() {
         const title = document.getElementById('document-title').textContent;
-        WebNotebook.Interface.FileManager.updateBreadcrumb(title);
+        if (WebNotebook.Interface.FileManager) {
+            WebNotebook.Interface.FileManager.updateBreadcrumb(title);
+        }
         
         // Update document tab title
         document.title = title + ' - Web Notebook';
@@ -235,7 +286,9 @@ const WebNotebook = (function() {
      * Save current document content
      */
     function saveCurrentDocument() {
-        WebNotebook.Interface.FileManager.saveCurrentDocument();
+        if (WebNotebook.Interface.FileManager) {
+            WebNotebook.Interface.FileManager.saveCurrentDocument();
+        }
         
         // Save as last accessed document
         saveLastDocument();
@@ -245,6 +298,10 @@ const WebNotebook = (function() {
      * Save the current document as the last accessed one
      */
     function saveLastDocument() {
+        if (!WebNotebook.Interface.FileManager || !WebNotebook.Utils.Storage) {
+            return;
+        }
+        
         const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
         if (selectedNode) {
             const nodeId = selectedNode.dataset.id;
@@ -260,6 +317,10 @@ const WebNotebook = (function() {
      * Load the last accessed document
      */
     function loadLastDocument() {
+        if (!WebNotebook.Utils.Storage || !WebNotebook.Interface.FileManager) {
+            return;
+        }
+        
         const settings = WebNotebook.Utils.Storage.loadSettings();
         if (settings.lastDocument) {
             const node = document.querySelector(`.node-content[data-id="${settings.lastDocument}"]`);
@@ -279,6 +340,10 @@ const WebNotebook = (function() {
      * Create a default document if none exists
      */
     function createDefaultDocument() {
+        if (!WebNotebook.Utils.Storage || !WebNotebook.Interface.FileManager) {
+            return;
+        }
+        
         // Check if there are any documents
         const nodesData = WebNotebook.Utils.Storage.loadNodesData();
         
@@ -329,12 +394,14 @@ const WebNotebook = (function() {
      */
     function toggleSidebar() {
         const sidebar = document.getElementById('sidebar');
-        sidebar.classList.toggle('collapsed');
-        
-        // Update content area spacing
-        const contentArea = document.querySelector('.content-area');
-        if (contentArea) {
-            contentArea.classList.toggle('full-width', sidebar.classList.contains('collapsed'));
+        if (sidebar) {
+            sidebar.classList.toggle('collapsed');
+            
+            // Update content area spacing
+            const contentArea = document.querySelector('.content-area');
+            if (contentArea) {
+                contentArea.classList.toggle('full-width', sidebar.classList.contains('collapsed'));
+            }
         }
     }
     
@@ -343,7 +410,9 @@ const WebNotebook = (function() {
      */
     function toggleAIDropdown() {
         const dropdown = document.getElementById('ai-dropdown');
-        dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        if (dropdown) {
+            dropdown.style.display = dropdown.style.display === 'block' ? 'none' : 'block';
+        }
     }
     
     /**
@@ -421,7 +490,10 @@ const WebNotebook = (function() {
                 }
                 
                 // Return focus to the editor
-                document.getElementById('document-body').focus();
+                const documentBody = document.getElementById('document-body');
+                if (documentBody) {
+                    documentBody.focus();
+                }
             });
         });
         
@@ -512,35 +584,39 @@ const WebNotebook = (function() {
             
             // Add event listener for checkbox
             const checkbox = todoItem.querySelector('input[type="checkbox"]');
-            checkbox.addEventListener('change', function() {
-                const span = this.nextElementSibling;
-                if (this.checked) {
-                    span.style.textDecoration = 'line-through';
-                    span.style.opacity = '0.7';
-                } else {
-                    span.style.textDecoration = 'none';
-                    span.style.opacity = '1';
-                }
-                
-                // Save document
-                saveCurrentDocument();
-            });
+            if (checkbox) {
+                checkbox.addEventListener('change', function() {
+                    const span = this.nextElementSibling;
+                    if (this.checked) {
+                        span.style.textDecoration = 'line-through';
+                        span.style.opacity = '0.7';
+                    } else {
+                        span.style.textDecoration = 'none';
+                        span.style.opacity = '1';
+                    }
+                    
+                    // Save document
+                    saveCurrentDocument();
+                });
+            }
             
             // Focus on the editable span
             const span = todoItem.querySelector('span');
-            span.focus();
-            
-            // Select all text in the span
-            const textRange = document.createRange();
-            textRange.selectNodeContents(span);
-            selection.removeAllRanges();
-            selection.addRange(textRange);
+            if (span) {
+                span.focus();
+                
+                // Select all text in the span
+                const textRange = document.createRange();
+                textRange.selectNodeContents(span);
+                selection.removeAllRanges();
+                selection.addRange(textRange);
+            }
         }
     }
     
     // Return public methods and properties
     return {
-        // Public methods
+        initialize,
         saveCurrentDocument,
         toggleSidebar,
         getSelectedText,
@@ -548,3 +624,8 @@ const WebNotebook = (function() {
         isInitialized: () => isInitialized
     };
 })();
+
+// Initialize the application when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    WebNotebook.App.initialize();
+});

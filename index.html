@@ -465,40 +465,44 @@ Example:
       </div>
     </div>
 
-    <!-- Initialize application namespace -->
-    <script>
-      // Initialize global namespace if it doesn't exist yet
-      window.WebNotebook = window.WebNotebook || {};
-    </script>
+    <!-- Just the script loading part from index.html with fixed order -->
 
-    <!-- Scripts: Load in dependency order -->
-    <!-- Utils first -->
-    <script src="js/utils/storage.js"></script>
-    <script src="js/utils/search.js"></script>
-    <script src="js/utils/utils.js"></script>
-
-    <!-- Interface components -->
-    <script src="js/interface/viewModes.js"></script>
-    <script src="js/interface/fileManager.js"></script>
-    <script src="js/interface/contextMenu.js"></script>
-    <script src="js/interface/dragDrop.js"></script>
-    <script src="js/interface/roadmapTracker.js"></script>
-
-    <!-- Knowledge Tree components -->
-    <script src="js/knowledge-tree/nodeTypes.js"></script>
-    <script src="js/knowledge-tree/treeEditor.js"></script>
-    <script src="js/knowledge-tree/visualizer.js"></script>
-    <script src="js/knowledge-tree/exportManager.js"></script>
-    <script src="js/knowledge-tree/aiOrganizer.js"></script>
-
-    <!-- AI Copilot components -->
-    <script src="js/copilot/clipboardMonitor.js"></script>
-    <script src="js/copilot/promptManager.js"></script>
-    <script src="js/copilot/historyTracker.js"></script>
-    <script src="js/copilot/aiProcessor.js"></script>
-    <script src="js/copilot/copilot.js"></script>
-
-    <!-- Main application -->
-    <script src="js/app.js"></script>
+<!-- Initialize application namespace first -->
+<script>
+    // Initialize global namespace
+    window.WebNotebook = window.WebNotebook || {};
+  </script>
+  
+  <!-- Scripts: Load in dependency order -->
+  <!-- Load utils.js first (with namespace definitions) -->
+  <script src="js/utils/utils.js"></script>
+  
+  <!-- Then load Storage module -->
+  <script src="js/utils/storage.js"></script>
+  <script src="js/utils/search.js"></script>
+  
+  <!-- Interface components -->
+  <script src="js/interface/viewModes.js"></script>
+  <script src="js/interface/fileManager.js"></script>
+  <script src="js/interface/contextMenu.js"></script>
+  <script src="js/interface/dragDrop.js"></script>
+  <script src="js/interface/roadmapTracker.js"></script>
+  
+  <!-- Knowledge Tree components -->
+  <script src="js/knowledge-tree/nodeTypes.js"></script>
+  <script src="js/knowledge-tree/treeEditor.js"></script>
+  <script src="js/knowledge-tree/visualizer.js"></script>
+  <script src="js/knowledge-tree/exportManager.js"></script>
+  <script src="js/knowledge-tree/aiOrganizer.js"></script>
+  
+  <!-- AI Copilot components -->
+  <script src="js/copilot/clipboardMonitor.js"></script>
+  <script src="js/copilot/promptManager.js"></script>
+  <script src="js/copilot/historyTracker.js"></script>
+  <script src="js/copilot/aiProcessor.js"></script>
+  <script src="js/copilot/copilot.js"></script>
+  
+  <!-- Main application (load this last) -->
+  <script src="js/app.js"></script>
   </body>
 </html>

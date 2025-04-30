@@ -4,6 +4,8 @@
  * Integrates clipboard monitoring, AI processing, prompts, and history
  */
 
+// Initialize namespace
+window.WebNotebook = window.WebNotebook || {};
 WebNotebook.Copilot = WebNotebook.Copilot || {};
 
 // Main Copilot Module
@@ -19,11 +21,28 @@ WebNotebook.Copilot = (function() {
     function initialize() {
         console.log('Copilot module initialized');
         
-        // Initialize submodules
-        WebNotebook.Copilot.ClipboardMonitor.initialize();
-        WebNotebook.Copilot.AIProcessor.initialize();
-        WebNotebook.Copilot.PromptManager.initialize();
-        WebNotebook.Copilot.HistoryTracker.initialize();
+        // Make sure all submodules exist
+        WebNotebook.Copilot.ClipboardMonitor = WebNotebook.Copilot.ClipboardMonitor || {};
+        WebNotebook.Copilot.AIProcessor = WebNotebook.Copilot.AIProcessor || {};
+        WebNotebook.Copilot.PromptManager = WebNotebook.Copilot.PromptManager || {};
+        WebNotebook.Copilot.HistoryTracker = WebNotebook.Copilot.HistoryTracker || {};
+        
+        // Initialize submodules if they have initialize function
+        if (WebNotebook.Copilot.ClipboardMonitor.initialize) {
+            WebNotebook.Copilot.ClipboardMonitor.initialize();
+        }
+        
+        if (WebNotebook.Copilot.AIProcessor.initialize) {
+            WebNotebook.Copilot.AIProcessor.initialize();
+        }
+        
+        if (WebNotebook.Copilot.PromptManager.initialize) {
+            WebNotebook.Copilot.PromptManager.initialize();
+        }
+        
+        if (WebNotebook.Copilot.HistoryTracker.initialize) {
+            WebNotebook.Copilot.HistoryTracker.initialize();
+        }
         
         // Set up the copilot UI
         setupCopilotUI();
@@ -57,9 +76,13 @@ WebNotebook.Copilot = (function() {
         if (monitorToggle) {
             monitorToggle.addEventListener('change', function() {
                 if (this.checked) {
-                    WebNotebook.Copilot.ClipboardMonitor.startMonitoring();
+                    if (WebNotebook.Copilot.ClipboardMonitor && WebNotebook.Copilot.ClipboardMonitor.startMonitoring) {
+                        WebNotebook.Copilot.ClipboardMonitor.startMonitoring();
+                    }
                 } else {
-                    WebNotebook.Copilot.ClipboardMonitor.stopMonitoring();
+                    if (WebNotebook.Copilot.ClipboardMonitor && WebNotebook.Copilot.ClipboardMonitor.stopMonitoring) {
+                        WebNotebook.Copilot.ClipboardMonitor.stopMonitoring();
+                    }
                 }
                 
                 // Save the toggle state
@@ -96,13 +119,16 @@ WebNotebook.Copilot = (function() {
             capturedTextArea.textContent = text;
             
             // Analyze the content for suggestions
-            WebNotebook.Copilot.AIProcessor.analyzeContent(text);
+            if (WebNotebook.Copilot.AIProcessor && WebNotebook.Copilot.AIProcessor.analyzeContent) {
+                WebNotebook.Copilot.AIProcessor.analyzeContent(text);
+            }
         });
         
         // Add input handler to update suggestions on manual typing
         capturedTextArea.addEventListener('input', function() {
             const text = this.textContent.trim();
-            if (text.length > 10) { // Only analyze if there's enough text
+            if (text.length > 10 && WebNotebook.Copilot.AIProcessor && WebNotebook.Copilot.AIProcessor.analyzeContent) {
+                // Only analyze if there's enough text
                 WebNotebook.Copilot.AIProcessor.analyzeContent(text);
             }
         });
@@ -138,7 +164,9 @@ WebNotebook.Copilot = (function() {
             isActive = true;
             
             // If clipboard monitoring is on, check for content in clipboard
-            if (WebNotebook.Copilot.ClipboardMonitor.isMonitoring()) {
+            if (WebNotebook.Copilot.ClipboardMonitor && 
+                WebNotebook.Copilot.ClipboardMonitor.isMonitoring && 
+                WebNotebook.Copilot.ClipboardMonitor.isMonitoring()) {
                 checkClipboardOnActivation();
             }
         }
@@ -167,7 +195,9 @@ WebNotebook.Copilot = (function() {
                 .then(text => {
                     if (text && text.trim()) {
                         updateCapturedContent(text);
-                        WebNotebook.Copilot.AIProcessor.analyzeContent(text);
+                        if (WebNotebook.Copilot.AIProcessor && WebNotebook.Copilot.AIProcessor.analyzeContent) {
+                            WebNotebook.Copilot.AIProcessor.analyzeContent(text);
+                        }
                     }
                 })
                 .catch(err => {
@@ -253,15 +283,19 @@ WebNotebook.Copilot = (function() {
         showCopilot();
         
         // Analyze content for processing suggestions
-        WebNotebook.Copilot.AIProcessor.analyzeContent(text);
+        if (WebNotebook.Copilot.AIProcessor && WebNotebook.Copilot.AIProcessor.analyzeContent) {
+            WebNotebook.Copilot.AIProcessor.analyzeContent(text);
+        }
         
         // Add to history
-        WebNotebook.Copilot.HistoryTracker.addHistoryItem({
-            type: 'capture',
-            content: text,
-            timestamp: new Date().toISOString(),
-            source: 'manual'
-        });
+        if (WebNotebook.Copilot.HistoryTracker && WebNotebook.Copilot.HistoryTracker.addHistoryItem) {
+            WebNotebook.Copilot.HistoryTracker.addHistoryItem({
+                type: 'capture',
+                content: text,
+                timestamp: new Date().toISOString(),
+                source: 'manual'
+            });
+        }
     }
     
     /**
@@ -280,17 +314,26 @@ WebNotebook.Copilot = (function() {
         showCopilot();
         
         // Process the content
-        WebNotebook.Copilot.AIProcessor.processContent(content, action, customPrompt);
+        if (WebNotebook.Copilot.AIProcessor && WebNotebook.Copilot.AIProcessor.processContent) {
+            WebNotebook.Copilot.AIProcessor.processContent(content, action, customPrompt);
+        }
     }
     
     /**
      * Save the current state of the copilot
      */
     function saveCopilotState() {
+        if (!WebNotebook.Utils || !WebNotebook.Utils.Storage) {
+            console.error('Storage module not available');
+            return;
+        }
+
         const settings = WebNotebook.Utils.Storage.loadSettings();
         
         settings.copilot = settings.copilot || {};
-        settings.copilot.isMonitoring = WebNotebook.Copilot.ClipboardMonitor.isMonitoring();
+        if (WebNotebook.Copilot.ClipboardMonitor && WebNotebook.Copilot.ClipboardMonitor.isMonitoring) {
+            settings.copilot.isMonitoring = WebNotebook.Copilot.ClipboardMonitor.isMonitoring();
+        }
         
         // Save position if it's been moved
         if (copilotPopup && copilotPopup.style.left) {
@@ -307,11 +350,18 @@ WebNotebook.Copilot = (function() {
      * Load the saved state of the copilot
      */
     function loadCopilotState() {
+        if (!WebNotebook.Utils || !WebNotebook.Utils.Storage) {
+            console.error('Storage module not available');
+            return;
+        }
+
         const settings = WebNotebook.Utils.Storage.loadSettings();
         
         if (settings.copilot) {
             // Restore clipboard monitoring state
-            if (settings.copilot.isMonitoring) {
+            if (settings.copilot.isMonitoring && 
+                WebNotebook.Copilot.ClipboardMonitor && 
+                WebNotebook.Copilot.ClipboardMonitor.startMonitoring) {
                 WebNotebook.Copilot.ClipboardMonitor.startMonitoring();
                 
                 // Update toggle switch
@@ -340,14 +390,18 @@ WebNotebook.Copilot = (function() {
      * @returns {boolean} - True if monitoring is active
      */
     function isMonitoring() {
-        return WebNotebook.Copilot.ClipboardMonitor.isMonitoring();
+        return WebNotebook.Copilot.ClipboardMonitor && 
+               WebNotebook.Copilot.ClipboardMonitor.isMonitoring && 
+               WebNotebook.Copilot.ClipboardMonitor.isMonitoring();
     }
     
     /**
      * Start clipboard monitoring
      */
     function startMonitoring() {
-        WebNotebook.Copilot.ClipboardMonitor.startMonitoring();
+        if (WebNotebook.Copilot.ClipboardMonitor && WebNotebook.Copilot.ClipboardMonitor.startMonitoring) {
+            WebNotebook.Copilot.ClipboardMonitor.startMonitoring();
+        }
         
         // Update toggle switch if it exists
         const toggle = document.getElementById('clipboard-monitor-toggle');
@@ -363,7 +417,9 @@ WebNotebook.Copilot = (function() {
      * Stop clipboard monitoring
      */
     function stopMonitoring() {
-        WebNotebook.Copilot.ClipboardMonitor.stopMonitoring();
+        if (WebNotebook.Copilot.ClipboardMonitor && WebNotebook.Copilot.ClipboardMonitor.stopMonitoring) {
+            WebNotebook.Copilot.ClipboardMonitor.stopMonitoring();
+        }
         
         // Update toggle switch if it exists
         const toggle = document.getElementById('clipboard-monitor-toggle');
@@ -393,11 +449,11 @@ WebNotebook.Copilot = (function() {
                 <div class="modal-body">
                     <div class="form-group">
                         <label for="default-prompt">Default Processing Prompt</label>
-                        <textarea id="default-prompt" rows="4">${WebNotebook.Copilot.PromptManager.getPrompt('custom')}</textarea>
+                        <textarea id="default-prompt" rows="4">${WebNotebook.Copilot.PromptManager && WebNotebook.Copilot.PromptManager.getPrompt ? WebNotebook.Copilot.PromptManager.getPrompt('custom') : ''}</textarea>
                     </div>
                     <div class="form-group">
                         <label>
-                            <input type="checkbox" id="settings-autostart" ${WebNotebook.Copilot.ClipboardMonitor.isMonitoring() ? 'checked' : ''}>
+                            <input type="checkbox" id="settings-autostart" ${isMonitoring() ? 'checked' : ''}>
                             Automatically start clipboard monitoring on startup
                         </label>
                     </div>
@@ -429,31 +485,39 @@ WebNotebook.Copilot = (function() {
         });
         
         // Add new prompt button
-        dialog.querySelector('#add-new-prompt-btn').addEventListener('click', () => {
-            WebNotebook.Copilot.PromptManager.showSavePromptDialog();
-            
-            // Refresh the saved prompts list
-            dialog.querySelector('#saved-prompts-list').innerHTML = getSavedPromptsHTML();
-        });
+        const addNewPromptBtn = dialog.querySelector('#add-new-prompt-btn');
+        if (addNewPromptBtn && WebNotebook.Copilot.PromptManager && WebNotebook.Copilot.PromptManager.showSavePromptDialog) {
+            addNewPromptBtn.addEventListener('click', () => {
+                WebNotebook.Copilot.PromptManager.showSavePromptDialog();
+                
+                // Refresh the saved prompts list
+                dialog.querySelector('#saved-prompts-list').innerHTML = getSavedPromptsHTML();
+            });
+        }
         
         // Save settings button
-        dialog.querySelector('#settings-save-btn').addEventListener('click', () => {
-            // Save default prompt
-            const defaultPrompt = dialog.querySelector('#default-prompt').value;
-            if (defaultPrompt) {
-                WebNotebook.Copilot.PromptManager.updateDefaultPrompt(defaultPrompt);
-            }
-            
-            // Save autostart preference
-            const autostart = dialog.querySelector('#settings-autostart').checked;
-            const settings = WebNotebook.Utils.Storage.loadSettings();
-            settings.copilot = settings.copilot || {};
-            settings.copilot.autostart = autostart;
-            WebNotebook.Utils.Storage.saveSettings(settings);
-            
-            // Close dialog
-            document.body.removeChild(dialog);
-        });
+        const saveSettingsBtn = dialog.querySelector('#settings-save-btn');
+        if (saveSettingsBtn) {
+            saveSettingsBtn.addEventListener('click', () => {
+                // Save default prompt
+                const defaultPrompt = dialog.querySelector('#default-prompt').value;
+                if (defaultPrompt && WebNotebook.Copilot.PromptManager && WebNotebook.Copilot.PromptManager.updateDefaultPrompt) {
+                    WebNotebook.Copilot.PromptManager.updateDefaultPrompt(defaultPrompt);
+                }
+                
+                // Save autostart preference
+                const autostart = dialog.querySelector('#settings-autostart').checked;
+                if (WebNotebook.Utils && WebNotebook.Utils.Storage) {
+                    const settings = WebNotebook.Utils.Storage.loadSettings();
+                    settings.copilot = settings.copilot || {};
+                    settings.copilot.autostart = autostart;
+                    WebNotebook.Utils.Storage.saveSettings(settings);
+                }
+                
+                // Close dialog
+                document.body.removeChild(dialog);
+            });
+        }
     }
     
     /**
@@ -461,6 +525,10 @@ WebNotebook.Copilot = (function() {
      * @returns {string} HTML for saved prompts list
      */
     function getSavedPromptsHTML() {
+        if (!WebNotebook.Copilot.PromptManager || !WebNotebook.Copilot.PromptManager.getSavedPrompts) {
+            return '<p>Prompt management not available.</p>';
+        }
+        
         const savedPrompts = WebNotebook.Copilot.PromptManager.getSavedPrompts();
         if (savedPrompts.length === 0) {
             return '<p>No saved prompts yet. Add one using the button below.</p>';

@@ -1123,3 +1123,207 @@ input:checked + .toggle-slider:before {
 ::-webkit-scrollbar-thumb:hover {
     background: #999;
 }
+
+/* Add these styles to your main.css or interface.css file */
+
+/* File Upload Styles */
+.file-upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.file-upload-area.drag-over {
+    background-color: #f5f5f5;
+    border-color: #66bb6a;
+}
+
+#drop-zone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    padding: 20px;
+}
+
+#file-upload {
+    display: none;
+}
+
+#drop-zone label {
+    background-color: #233749;
+    color: white;
+    padding: 8px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#drop-zone label:hover {
+    background-color: #557ba1;
+}
+
+#uploaded-files-list {
+    margin-top: 15px;
+    width: 100%;
+    max-height: 200px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    padding: 10px;
+}
+
+.file-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px;
+    border-bottom: 1px solid #eee;
+}
+
+.file-item:last-child {
+    border-bottom: none;
+}
+
+.file-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.remove-file {
+    color: #ef5350;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 1.2em;
+    margin-left: 10px;
+}
+
+.remove-file:hover {
+    color: #c62828;
+}
+
+/* Roadmap Progress Bar Styles */
+.node-content[data-type="roadmap"] {
+    position: relative;
+}
+
+.progress-indicator {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background-color: #66bb6a;
+    border-radius: 0 0 0 4px;
+    transition: width 0.5s ease;
+}
+
+.status-indicator {
+    margin-left: 5px;
+    font-size: 14px;
+}
+
+.status-indicator.completed {
+    color: #66bb6a;
+}
+
+.status-indicator.in-progress {
+    color: #ffa726;
+}
+
+.status-indicator.not-started {
+    color: #ef5350;
+}
+
+/* Progress Tracker in Document View */
+.progress-tracker {
+    margin: 15px 0;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.progress-bar-container {
+    margin-bottom: 15px;
+}
+
+.progress-label {
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.progress-bar-wrapper {
+    height: 20px;
+    background-color: #eee;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar-wrapper .progress-bar {
+    height: 100%;
+    background-color: #66bb6a;
+    transition: width 0.5s ease;
+}
+
+.progress-percentage {
+    position: absolute;
+    top: 0;
+    right: 10px;
+    line-height: 20px;
+    font-size: 12px;
+    color: #333;
+    font-weight: 500;
+}
+
+.progress-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.stat-item {
+    flex: 1;
+    min-width: 160px;
+    border-left: 3px solid #ddd;
+    padding-left: 10px;
+}
+
+.stat-item:nth-child(1) {
+    border-color: #66bb6a;
+}
+
+.stat-item:nth-child(2) {
+    border-color: #ffa726;
+}
+
+.stat-item:nth-child(3) {
+    border-color: #ef5350;
+}
+
+.stat-label {
+    font-weight: 500;
+    color: #555;
+    display: block;
+    margin-bottom: 3px;
+}
+
+/* Document Summary Loading Indicator */
+.doc-summary-loading {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background-color: rgba(255, 255, 255, 0.9);
+    z-index: 10;
+}

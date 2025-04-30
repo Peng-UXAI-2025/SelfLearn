@@ -3,6 +3,8 @@
  * Handles learning roadmap progression tracking and visualization
  */
 
+// Initialize namespace
+window.WebNotebook = window.WebNotebook || {};
 WebNotebook.Interface = WebNotebook.Interface || {};
 WebNotebook.Interface.RoadmapTracker = (function() {
     /**
@@ -78,6 +80,8 @@ WebNotebook.Interface.RoadmapTracker = (function() {
             if (!nodeId) return null;
             
             // Get node data
+            if (!WebNotebook.Utils || !WebNotebook.Utils.Storage) return null;
+            
             const nodesData = WebNotebook.Utils.Storage.loadNodesData();
             if (!nodesData[nodeId] || !nodesData[nodeId].parentId) return null;
             
@@ -164,6 +168,35 @@ WebNotebook.Interface.RoadmapTracker = (function() {
         
         progressIndicator.style.width = `${progress}%`;
         
+        // Update overall status indicator based on progress
+        let statusIndicator = roadmapNode.querySelector('.status-indicator');
+        if (!statusIndicator) {
+            statusIndicator = document.createElement('span');
+            statusIndicator.className = 'status-indicator';
+            roadmapNode.appendChild(statusIndicator);
+        }
+        
+        // Show colored circle based on progress
+        if (progress === 100) {
+            // All items completed - show green circle
+            statusIndicator.className = 'status-indicator completed';
+            statusIndicator.textContent = '●'; // Green circle
+            statusIndicator.style.color = '#66bb6a'; // Green color
+            roadmapNode.setAttribute('data-status', 'completed');
+        } else if (progress > 0) {
+            // Some items completed - show yellow circle
+            statusIndicator.className = 'status-indicator in-progress';
+            statusIndicator.textContent = '●'; // Yellow circle
+            statusIndicator.style.color = '#ffa726'; // Yellow/orange color
+            roadmapNode.setAttribute('data-status', 'in-progress');
+        } else {
+            // No items completed - show red circle
+            statusIndicator.className = 'status-indicator not-started';
+            statusIndicator.textContent = '●'; // Red circle
+            statusIndicator.style.color = '#ef5350'; // Red color
+            roadmapNode.setAttribute('data-status', 'not-started');
+        }
+        
         // Update icon view as well
         const iconViewNode = document.querySelector(`.grid-item[data-id="${roadmapNode.dataset.id}"]`);
         if (iconViewNode) {
@@ -175,11 +208,37 @@ WebNotebook.Interface.RoadmapTracker = (function() {
             }
             
             iconProgressBar.style.width = `${progress}%`;
+            
+            // Update status indicator in icon view too
+            let iconStatusIndicator = iconViewNode.querySelector('.status-indicator');
+            if (!iconStatusIndicator) {
+                iconStatusIndicator = document.createElement('span');
+                iconStatusIndicator.className = 'status-indicator';
+                iconViewNode.appendChild(iconStatusIndicator);
+            }
+            
+            // Use the same status as the tree view node
+            if (progress === 100) {
+                iconStatusIndicator.className = 'status-indicator completed';
+                iconStatusIndicator.textContent = '●';
+                iconStatusIndicator.style.color = '#66bb6a';
+                iconViewNode.setAttribute('data-status', 'completed');
+            } else if (progress > 0) {
+                iconStatusIndicator.className = 'status-indicator in-progress';
+                iconStatusIndicator.textContent = '●';
+                iconStatusIndicator.style.color = '#ffa726';
+                iconViewNode.setAttribute('data-status', 'in-progress');
+            } else {
+                iconStatusIndicator.className = 'status-indicator not-started';
+                iconStatusIndicator.textContent = '●';
+                iconStatusIndicator.style.color = '#ef5350';
+                iconViewNode.setAttribute('data-status', 'not-started');
+            }
         }
         
         // Update roadmap node data
         const nodeId = roadmapNode.dataset.id;
-        if (nodeId) {
+        if (nodeId && WebNotebook.Utils && WebNotebook.Utils.Storage) {
             const nodeData = WebNotebook.Utils.Storage.getNodeById(nodeId);
             if (nodeData) {
                 nodeData.progressStats = {
@@ -209,6 +268,8 @@ WebNotebook.Interface.RoadmapTracker = (function() {
      * @param {Object} stats - Progress statistics
      */
     function updateDocumentProgress(roadmapNode, stats) {
+        if (!WebNotebook.Interface.FileManager) return;
+        
         const selectedNode = WebNotebook.Interface.FileManager.getSelectedNode();
         
         // Only update if this roadmap is the selected node
@@ -282,6 +343,8 @@ WebNotebook.Interface.RoadmapTracker = (function() {
         }
         
         // Calculate progress
+        if (!WebNotebook.Utils || !WebNotebook.Utils.Storage) return null;
+        
         const nodeData = WebNotebook.Utils.Storage.getNodeById(roadmapId);
         if (nodeData && nodeData.progressStats) {
             return nodeData.progressStats;
@@ -317,7 +380,9 @@ WebNotebook.Interface.RoadmapTracker = (function() {
         
         // Update status for each child
         childNodes.forEach(node => {
-            WebNotebook.Interface.FileManager.updateNodeStatus(node, status);
+            if (WebNotebook.Interface.FileManager) {
+                WebNotebook.Interface.FileManager.updateNodeStatus(node, status);
+            }
         });
         
         // Update progress
@@ -337,6 +402,8 @@ WebNotebook.Interface.RoadmapTracker = (function() {
         if (!roadmapNode || roadmapNode.getAttribute('data-type') !== 'roadmap') {
             return null;
         }
+        
+        if (!WebNotebook.Interface.FileManager) return null;
         
         // Create the new node as a child of the roadmap
         const newNodeId = WebNotebook.Interface.FileManager.createNode(name, type, roadmapNode);

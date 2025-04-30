@@ -13,7 +13,7 @@
     box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
     z-index: 1000;
     overflow: hidden;
-    display: flex;
+    display: none; /* Changed from flex to none to start hidden */
     flex-direction: column;
     max-height: 80vh;
 }
@@ -315,6 +315,54 @@ input:checked + .toggle-slider:before {
 
 .copilot-active {
     border-left: 4px solid #66bb6a;
+}
+
+/* Processing indicator */
+.processing-indicator {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 10;
+    text-align: center;
+}
+
+.loading-spinner {
+    display: inline-block;
+    width: 30px;
+    height: 30px;
+    border: 3px solid rgba(0, 0, 0, 0.1);
+    border-radius: 50%;
+    border-top-color: #233749;
+    animation: spin 1s ease-in-out infinite;
+    margin-bottom: 10px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-status {
+    margin-bottom: 10px;
+}
+
+.progress-container {
+    width: 200px;
+    height: 6px;
+    background-color: #eee;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #233749;
+    width: 0%;
+    transition: width 0.3s ease;
 }
 
 /* Notification Styles */

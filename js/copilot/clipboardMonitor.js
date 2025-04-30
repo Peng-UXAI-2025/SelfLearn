@@ -4,6 +4,8 @@
  * to support the AI Copilot functionality
  */
 
+// Initialize namespace
+window.WebNotebook = window.WebNotebook || {};
 WebNotebook.Copilot = WebNotebook.Copilot || {};
 WebNotebook.Copilot.ClipboardMonitor = (function() {
     // Private variables
@@ -25,10 +27,13 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
         setupPasteListener();
         
         // Load last monitoring state from settings
-        const settings = WebNotebook.Utils.Storage.loadSettings();
-        if (settings.copilot && settings.copilot.autostart) {
-            startMonitoring();
-            document.getElementById('clipboard-monitor-toggle').checked = true;
+        if (WebNotebook.Utils && WebNotebook.Utils.Storage) {
+            const settings = WebNotebook.Utils.Storage.loadSettings();
+            if (settings.copilot && settings.copilot.autostart) {
+                startMonitoring();
+                const toggle = document.getElementById('clipboard-monitor-toggle');
+                if (toggle) toggle.checked = true;
+            }
         }
     }
     
@@ -47,10 +52,12 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
             }
             
             // Save preference to settings
-            const settings = WebNotebook.Utils.Storage.loadSettings();
-            settings.copilot = settings.copilot || {};
-            settings.copilot.isMonitoring = this.checked;
-            WebNotebook.Utils.Storage.saveSettings(settings);
+            if (WebNotebook.Utils && WebNotebook.Utils.Storage) {
+                const settings = WebNotebook.Utils.Storage.loadSettings();
+                settings.copilot = settings.copilot || {};
+                settings.copilot.isMonitoring = this.checked;
+                WebNotebook.Utils.Storage.saveSettings(settings);
+            }
         });
     }
     
@@ -169,20 +176,26 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
         if (isSimilarToLastCapture(trimmedText)) return;
         
         // Update the displayed captured content
-        updateCapturedContent(trimmedText);
+        if (WebNotebook.Copilot && WebNotebook.Copilot.updateCapturedContent) {
+            WebNotebook.Copilot.updateCapturedContent(trimmedText);
+        }
         
         // Show notification
         showCaptureNotification(trimmedText);
         
         // Send to AI processor for analysis
-        WebNotebook.Copilot.AIProcessor.analyzeContent(trimmedText);
+        if (WebNotebook.Copilot.AIProcessor && WebNotebook.Copilot.AIProcessor.analyzeContent) {
+            WebNotebook.Copilot.AIProcessor.analyzeContent(trimmedText);
+        }
         
         // Add to history
-        WebNotebook.Copilot.HistoryTracker.addHistoryItem({
-            type: 'capture',
-            content: trimmedText,
-            timestamp: new Date().toISOString()
-        });
+        if (WebNotebook.Copilot.HistoryTracker && WebNotebook.Copilot.HistoryTracker.addHistoryItem) {
+            WebNotebook.Copilot.HistoryTracker.addHistoryItem({
+                type: 'capture',
+                content: trimmedText,
+                timestamp: new Date().toISOString()
+            });
+        }
     }
     
     /**
@@ -206,14 +219,6 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
         }
         
         return false;
-    }
-    
-    /**
-     * Update the displayed captured content in the copilot window
-     * @param {string} text - The text to display
-     */
-    function updateCapturedContent(text) {
-        WebNotebook.Copilot.updateCapturedContent(text);
     }
     
     /**
@@ -312,7 +317,9 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
      * Show the copilot window
      */
     function showCopilot() {
-        WebNotebook.Copilot.showCopilot();
+        if (WebNotebook.Copilot && WebNotebook.Copilot.showCopilot) {
+            WebNotebook.Copilot.showCopilot();
+        }
     }
     
     /**
@@ -334,3 +341,60 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
         isMonitoring: () => isMonitoring
     };
 })();
+
+// Modify the showCopilot function in copilot.js
+function showCopilot() {
+    if (!copilotPopup) {
+        copilotPopup = document.getElementById('copilot-popup');
+    }
+    
+    if (copilotPopup) {
+        // Make sure we're using display flex to properly show the popup
+        copilotPopup.style.display = 'flex';
+        
+        // Add a small timeout to ensure styles are applied
+        setTimeout(() => {
+            // Force repaint
+            copilotPopup.style.opacity = '0.99';
+            setTimeout(() => {
+                copilotPopup.style.opacity = '1';
+            }, 50);
+        }, 50);
+        
+        isActive = true;
+        
+        // If clipboard monitoring is on, check for content in clipboard
+        if (WebNotebook.Copilot.ClipboardMonitor && 
+            WebNotebook.Copilot.ClipboardMonitor.isMonitoring && 
+            WebNotebook.Copilot.ClipboardMonitor.isMonitoring()) {
+            checkClipboardOnActivation();
+        }
+    } else {
+        console.error('Copilot popup element not found with ID: copilot-popup');
+        alert('Could not display AI Copilot. Please check the console for errors.');
+    }
+}
+
+// Add CSS fix to ensure the popup is visible
+document.addEventListener('DOMContentLoaded', function() {
+    // Add a style element to ensure the copilot-popup is properly styled
+    const style = document.createElement('style');
+    style.textContent = `
+        .copilot-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            max-width: 90vw;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            overflow: hidden;
+            display: none; /* Initially hidden */
+            flex-direction: column;
+            max-height: 80vh;
+        }
+    `;
+    document.head.appendChild(style);
+});

@@ -1,11 +1,267 @@
 /**
  * Study Spaces Module
- * Manages study spaces and knowledge items
+ * Manages study spaces and knowledge items with hierarchical tree structure
  */
 
 (function() {
     // Create study spaces namespace
-    window.studySpaces = {};
+    window.studySpaces = {    /**
+     * Create knowledge tree sidebar
+     * @param {Object} space - Current space
+     * @param {Object} activeItem - Currently active item
+     * @returns {HTMLElement} - Sidebar element
+     */
+    function createKnowledgeTreeSidebar(space, activeItem) {
+        const sidebar = document.createElement('div');
+        sidebar.className = 'knowledge-tree-sidebar';
+        
+        // Add sidebar header
+        const header = document.createElement('div');
+        header.className = 'tree-sidebar-header';
+        header.innerHTML = `
+            <h3>${space.name}</h3>
+            <button class="collapse-sidebar-btn">◀</button>
+        `;
+        
+        // Add collapse button functionality
+        header.querySelector('.collapse-sidebar-btn').addEventListener('click', () => {
+            toggleTreeSidebar(sidebar);
+        });
+        
+        sidebar.appendChild(header);
+        
+        // Add search input
+        const search = document.createElement('div');
+        search.className = 'tree-search';
+        search.innerHTML = `
+            <input type="text" placeholder="Search pages...">
+            <button class="search-btn">🔍</button>
+        `;
+        
+        // Add search functionality
+        const searchInput = search.querySelector('input');
+        const searchBtn = search.querySelector('.search-btn');
+        
+        searchBtn.addEventListener('click', () => {
+            searchKnowledgeTree(searchInput.value);
+        });
+        
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                searchKnowledgeTree(searchInput.value);
+            }
+        });
+        
+        sidebar.appendChild(search);
+        
+        // Create tree navigation
+        const treeContainer = document.createElement('div');
+        treeContainer.className = 'tree-container';
+        
+        // Generate tree from space items
+        const tree = generateTreeFromItems(space.items, activeItem);
+        treeContainer.appendChild(tree);
+        
+        sidebar.appendChild(treeContainer);
+        
+        // Add button to create new top-level item
+        const addButton = document.createElement('div');
+        addButton.className = 'add-top-item-btn';
+        addButton.innerHTML = `<i class="icon-plus"></i> New Page`;
+        
+        addButton.addEventListener('click', () => {
+            showAddKnowledgeModal(space.id);
+        });
+        
+        sidebar.appendChild(addButton);
+        
+        return sidebar;
+    }
+    
+    /**
+     * Generate tree from items
+     * @param {Array} items - Items array
+     * @param {Object} activeItem - Currently active item
+     * @returns {HTMLElement} - Tree element
+     */
+    function generateTreeFromItems(items, activeItem) {
+        const treeList = document.createElement('ul');
+        treeList.className = 'tree-list';
+        
+        // Error handling for empty or invalid items
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            const emptyMessage = document.createElement('li');
+            emptyMessage.className = 'tree-empty';
+            emptyMessage.textContent = 'No pages yet';
+            treeList.appendChild(emptyMessage);
+            return treeList;
+        }
+        
+        // Generate tree nodes recursively
+        items.forEach(item => {
+            const treeItem = document.createElement('li');
+            treeItem.className = 'tree-item';
+            
+            // Check if this is the active item
+            const isActive = activeItem && activeItem.id === item.id;
+            if (isActive) {
+                treeItem.classList.add('active');
+            }
+            
+            // Get status class
+            let statusClass = 'status-not-started';
+            if (item.status === 'completed') {
+                statusClass = 'status-completed';
+            } else if (item.status === 'in-progress') {
+                statusClass = 'status-in-progress';
+            }
+            
+            // Check if item has children
+            const hasChildren = item.children && Array.isArray(item.children) && item.children.length > 0;
+            
+            // Create item content
+            const itemContent = document.createElement('div');
+            itemContent.className = 'tree-item-content';
+            
+            // Add expand/collapse button if has children
+            if (hasChildren) {
+                const expandBtn = document.createElement('button');
+                expandBtn.className = 'expand-collapse-btn';
+                expandBtn.textContent = '▼';
+                
+                // Add click handler to expand/collapse
+                expandBtn.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering item click
+                    toggleTreeItem(treeItem);
+                });
+                
+                itemContent.appendChild(expandBtn);
+            } else {
+                // Add spacer if no children
+                const spacer = document.createElement('span');
+                spacer.className = 'tree-spacer';
+                spacer.innerHTML = '&nbsp;&nbsp;';
+                itemContent.appendChild(spacer);
+            }
+            
+            // Add status indicator
+            const statusIndicator = document.createElement('span');
+            statusIndicator.className = `tree-status-indicator ${statusClass}`;
+            itemContent.appendChild(statusIndicator);
+            
+            // Add item title
+            const itemTitle = document.createElement('span');
+            itemTitle.className = 'tree-item-title';
+            itemTitle.textContent = item.title;
+            itemContent.appendChild(itemTitle);
+            
+            // Add click handler to navigate to item
+            itemContent.addEventListener('click', () => {
+                openKnowledgeItem(item.id);
+            });
+            
+            treeItem.appendChild(itemContent);
+            
+            // Add children if any
+            if (hasChildren) {
+                const childrenList = generateTreeFromItems(item.children, activeItem);
+                childrenList.classList.add('tree-children');
+                
+                // Check if this item or any child is active
+                const isActiveOrHasActiveChild = isActive || 
+                                              checkIfItemHasActiveChild(item, activeItem);
+                
+                // If not active or doesn't have active child, collapse it
+                if (!isActiveOrHasActiveChild) {
+                    childrenList.style.display = 'none';
+                    itemContent.querySelector('.expand-collapse-btn').textContent = '►';
+                }
+                
+                treeItem.appendChild(childrenList);
+            }
+            
+            treeList.appendChild(treeItem);
+        });
+        
+        return treeList;
+    }
+    
+    /**
+     * Check if item has active child (recursively)
+     * @param {Object} item - Item to check
+     * @param {Object} activeItem - Currently active item
+     * @returns {boolean} - True if item has active child
+     */
+    function checkIfItemHasActiveChild(item, activeItem) {
+        if (!item.children || !Array.isArray(item.children) || !activeItem) {
+            return false;
+        }
+        
+        for (const child of item.children) {
+            if (child.id === activeItem.id) {
+                return true;
+            }
+            
+            if (checkIfItemHasActiveChild(child, activeItem)) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
+    
+    /**
+     * Toggle tree item expansion
+     * @param {HTMLElement} treeItem - Tree item element
+     */
+    function toggleTreeItem(treeItem) {
+        const childrenList = treeItem.querySelector('.tree-children');
+        const expandBtn = treeItem.querySelector('.expand-collapse-btn');
+        
+        if (childrenList) {
+            if (childrenList.style.display === 'none') {
+                childrenList.style.display = 'block';
+                expandBtn.textContent = '▼';
+            } else {
+                childrenList.style.display = 'none';
+                expandBtn.textContent = '►';
+            }
+        }
+    }
+    
+    /**
+     * Toggle tree sidebar
+     * @param {HTMLElement} sidebar - Sidebar element
+     */
+    function toggleTreeSidebar(sidebar) {
+        sidebar.classList.toggle('collapsed');
+        
+        // Update button text
+        const btn = sidebar.querySelector('.collapse-sidebar-btn');
+        if (sidebar.classList.contains('collapsed')) {
+            btn.textContent = '►';
+        } else {
+            btn.textContent = '◀';
+        }
+        
+        // Update container layout
+        const container = sidebar.closest('.notebook-container');
+        if (container) {
+            container.classList.toggle('sidebar-collapsed');
+        }
+    }
+    
+    /**
+     * Search knowledge tree
+     * @param {string} searchText - Text to search for
+     */
+    function searchKnowledgeTree(searchText) {
+        // Show simple alert for now
+        if (searchText.trim()) {
+            alert(`Searching for: ${searchText}\n\nSearch functionality will be implemented in a future update.`);
+        }
+    }
+};
     
     // Store current active space
     let currentSpace = null;
@@ -32,46 +288,68 @@
      * Create default study spaces
      */
     function createDefaultSpaces() {
-const defaultSpaces = {
-        'front-end': {
-            id: 'front-end',
-            name: 'Front End Development',
-            description: 'Web technologies like HTML, CSS, JavaScript, and modern frameworks',
-            icon: 'code',
-            coverClass: 'front-end-cover',
-            createdAt: new Date().toISOString(),
-            items: [
-                {
-                    id: 'html-basics',
-                    title: 'HTML Basics',
-                    subtitle: 'Structure and semantics',
-                    status: 'completed',
-                    content: '<h2>HTML Basics</h2><p>HTML (HyperText Markup Language) is the standard markup language for documents designed to be displayed in a web browser.</p><h3>Key Concepts</h3><ul><li>Elements and Tags</li><li>Attributes</li><li>Document Structure</li><li>Semantic Markup</li></ul><p>HTML elements are the building blocks of HTML pages. They are represented by tags, which label pieces of content.</p>',
-                    dateCreated: new Date().toISOString(),
-                    dateUpdated: new Date().toISOString(),
-                    children: [
-                        {
-                            id: 'html-elements',
-                            title: 'HTML Elements',
-                            subtitle: 'Basic building blocks',
-                            status: 'completed',
-                            content: '<h2>HTML Elements</h2><p>HTML elements are the building blocks of HTML pages. An HTML element is defined by a start tag, some content, and an end tag.</p><h3>Example</h3><pre>&lt;tagname&gt;Content goes here...&lt;/tagname&gt;</pre><p>Common HTML elements include headings, paragraphs, lists, links, and images.</p>',
-                            dateCreated: new Date().toISOString(),
-                            dateUpdated: new Date().toISOString(),
-                            children: []
-                        },
-                        {
-                            id: 'html-attributes',
-                            title: 'HTML Attributes',
-                            subtitle: 'Additional element information',
-                            status: 'in-progress',
-                            content: '<h2>HTML Attributes</h2><p>HTML attributes provide additional information about HTML elements.</p><h3>Key Points</h3><ul><li>Attributes are always specified in the start tag</li><li>Attributes usually come in name/value pairs like: name="value"</li><li>Common attributes include class, id, src, href, and style</li></ul>',
-                            dateCreated: new Date().toISOString(),
-                            dateUpdated: new Date().toISOString(),
-                            children: []
-                        }
-                    ]
-                },            
+        const defaultSpaces = {
+            'front-end': {
+                id: 'front-end',
+                name: 'Front End Development',
+                description: 'Web technologies like HTML, CSS, JavaScript, and modern frameworks',
+                icon: 'code',
+                coverClass: 'front-end-cover',
+                createdAt: new Date().toISOString(),
+                items: [
+                    {
+                        id: 'html-basics',
+                        title: 'HTML Basics',
+                        subtitle: 'Structure and semantics',
+                        status: 'completed',
+                        content: '<h2>HTML Basics</h2><p>HTML (HyperText Markup Language) is the standard markup language for documents designed to be displayed in a web browser.</p><h3>Key Concepts</h3><ul><li>Elements and Tags</li><li>Attributes</li><li>Document Structure</li><li>Semantic Markup</li></ul><p>HTML elements are the building blocks of HTML pages. They are represented by tags, which label pieces of content.</p>',
+                        dateCreated: new Date().toISOString(),
+                        dateUpdated: new Date().toISOString(),
+                        children: [
+                            {
+                                id: 'html-elements',
+                                title: 'HTML Elements',
+                                subtitle: 'Basic building blocks',
+                                status: 'completed',
+                                content: '<h2>HTML Elements</h2><p>HTML elements are the building blocks of HTML pages. An HTML element is defined by a start tag, some content, and an end tag.</p><h3>Example</h3><pre>&lt;tagname&gt;Content goes here...&lt;/tagname&gt;</pre><p>Common HTML elements include headings, paragraphs, lists, links, and images.</p>',
+                                dateCreated: new Date().toISOString(),
+                                dateUpdated: new Date().toISOString(),
+                                children: []
+                            },
+                            {
+                                id: 'html-attributes',
+                                title: 'HTML Attributes',
+                                subtitle: 'Additional element information',
+                                status: 'in-progress',
+                                content: '<h2>HTML Attributes</h2><p>HTML attributes provide additional information about HTML elements.</p><h3>Key Points</h3><ul><li>Attributes are always specified in the start tag</li><li>Attributes usually come in name/value pairs like: name="value"</li><li>Common attributes include class, id, src, href, and style</li></ul>',
+                                dateCreated: new Date().toISOString(),
+                                dateUpdated: new Date().toISOString(),
+                                children: []
+                            }
+                        ]
+                    },
+                    {
+                        id: 'css-basics',
+                        title: 'CSS Basics',
+                        subtitle: 'Styling web pages',
+                        status: 'in-progress',
+                        content: '<h2>CSS Basics</h2><p>CSS (Cascading Style Sheets) is used to style and layout web pages.</p><h3>Key Concepts</h3><ul><li>Selectors</li><li>Properties</li><li>Values</li><li>Box Model</li></ul><p>CSS describes how HTML elements should be displayed on screen, paper, or in other media.</p>',
+                        dateCreated: new Date().toISOString(),
+                        dateUpdated: new Date().toISOString(),
+                        children: []
+                    },
+                    {
+                        id: 'javascript-basics',
+                        title: 'JavaScript Basics',
+                        subtitle: 'Client-side programming',
+                        status: 'not-started',
+                        content: '<h2>JavaScript Basics</h2><p>JavaScript is a scripting language used to create and control dynamic website content.</p><h3>Key Concepts</h3><ul><li>Variables and Data Types</li><li>Functions</li><li>Objects</li><li>DOM Manipulation</li></ul><p>JavaScript enables interactive web pages and is an essential part of web applications.</p>',
+                        dateCreated: new Date().toISOString(),
+                        dateUpdated: new Date().toISOString(),
+                        children: []
+                    }
+                ]
+            },
             'ux-design': {
                 id: 'ux-design',
                 name: 'UX Design',
@@ -88,7 +366,7 @@ const defaultSpaces = {
                         content: '<h2>Design Thinking Methodology</h2><p>Design thinking is a non-linear, iterative process that teams use to understand users, challenge assumptions, redefine problems and create innovative solutions to prototype and test.</p><h3>The Five Stages of Design Thinking</h3><ol><li><strong>Empathize</strong>: Research user needs</li><li><strong>Define</strong>: State user needs and problems</li><li><strong>Ideate</strong>: Challenge assumptions and create ideas</li><li><strong>Prototype</strong>: Start creating solutions</li><li><strong>Test</strong>: Test your solutions</li></ol>',
                         dateCreated: new Date().toISOString(),
                         dateUpdated: new Date().toISOString(),
-                        subItems: [
+                        children: [
                             {
                                 id: 'empathize-stage',
                                 title: 'Empathize Stage',
@@ -96,7 +374,8 @@ const defaultSpaces = {
                                 status: 'completed',
                                 content: '<h2>Empathize Stage in Design Thinking</h2><p>The Empathize stage is about understanding the user and their needs through research.</p><h3>Common Methods</h3><ul><li>User interviews</li><li>Observation</li><li>Surveys and questionnaires</li><li>Empathy mapping</li></ul><p>The goal is to set aside your own assumptions and gain real insight into users and their needs.</p>',
                                 dateCreated: new Date().toISOString(),
-                                dateUpdated: new Date().toISOString()
+                                dateUpdated: new Date().toISOString(),
+                                children: []
                             },
                             {
                                 id: 'define-stage',
@@ -105,7 +384,8 @@ const defaultSpaces = {
                                 status: 'in-progress',
                                 content: '<h2>Define Stage in Design Thinking</h2><p>The Define stage is about processing and synthesizing the information gathered during the Empathize stage.</p><h3>Key Activities</h3><ul><li>Analyzing user research</li><li>Identifying patterns</li><li>Defining user needs and problems</li><li>Creating user personas</li><li>Developing problem statements</li></ul>',
                                 dateCreated: new Date().toISOString(),
-                                dateUpdated: new Date().toISOString()
+                                dateUpdated: new Date().toISOString(),
+                                children: []
                             }
                         ]
                     },
@@ -117,7 +397,7 @@ const defaultSpaces = {
                         content: '<h2>Wireframing Basics</h2><p>Wireframes are simplified visual representations of a final interface, focusing on layout, structure, and functionality rather than visual design.</p><h3>Purpose of Wireframing</h3><ul><li>Clarify interface before development begins</li><li>Get stakeholder approval on layout and functionality</li><li>Focus on usability without distraction of visual design</li></ul>',
                         dateCreated: new Date().toISOString(),
                         dateUpdated: new Date().toISOString(),
-                        subItems: []
+                        children: []
                     },
                     {
                         id: 'user-research',
@@ -127,7 +407,7 @@ const defaultSpaces = {
                         content: '',
                         dateCreated: new Date().toISOString(),
                         dateUpdated: new Date().toISOString(),
-                        subItems: []
+                        children: []
                     }
                 ]
             },
@@ -147,7 +427,7 @@ const defaultSpaces = {
                         content: '<h2>Node.js Basics</h2><p>Node.js is an open-source, cross-platform JavaScript runtime environment that executes JavaScript code outside a web browser.</p><h3>Key Concepts</h3><ul><li>Event-driven, non-blocking I/O model</li><li>Single-threaded event loop</li><li>CommonJS module system</li><li>NPM (Node Package Manager)</li></ul><p>Node.js allows developers to use JavaScript for server-side scripting to produce dynamic web page content before the page is sent to the user\'s web browser.</p>',
                         dateCreated: new Date().toISOString(),
                         dateUpdated: new Date().toISOString(),
-                        subItems: []
+                        children: []
                     },
                     {
                         id: 'rest-apis',
@@ -157,7 +437,7 @@ const defaultSpaces = {
                         content: '<h2>REST API Design</h2><p>REST (Representational State Transfer) is an architectural style for designing networked applications.</p><h3>RESTful API Principles</h3><ul><li>Stateless client-server communication</li><li>Cacheable responses</li><li>Uniform interface</li><li>Layered system</li></ul><h3>Common HTTP Methods</h3><ul><li>GET: Retrieve data</li><li>POST: Create data</li><li>PUT: Update data</li><li>DELETE: Remove data</li></ul>',
                         dateCreated: new Date().toISOString(),
                         dateUpdated: new Date().toISOString(),
-                        subItems: []
+                        children: []
                     },
                     {
                         id: 'database-design',
@@ -167,7 +447,7 @@ const defaultSpaces = {
                         content: '',
                         dateCreated: new Date().toISOString(),
                         dateUpdated: new Date().toISOString(),
-                        subItems: []
+                        children: []
                     }
                 ]
             }
@@ -254,8 +534,8 @@ const defaultSpaces = {
         card.dataset.spaceId = space.id;
         
         // Calculate stats
-        const totalItems = space.items ? space.items.length : 0;
-        const completedItems = space.items ? space.items.filter(item => item.status === 'completed').length : 0;
+        const totalItems = countTotalItems(space.items);
+        const completedItems = countCompletedItems(space.items);
         const progressPercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
         
         card.innerHTML = `
@@ -279,6 +559,48 @@ const defaultSpaces = {
         });
         
         return card;
+    }
+    
+    /**
+     * Count total items in a space including children (recursive)
+     * @param {Array} items - Items array
+     * @returns {number} - Total count
+     */
+    function countTotalItems(items) {
+        if (!items || !Array.isArray(items)) return 0;
+        
+        let count = items.length;
+        
+        for (const item of items) {
+            if (item.children && Array.isArray(item.children)) {
+                count += countTotalItems(item.children);
+            }
+        }
+        
+        return count;
+    }
+    
+    /**
+     * Count completed items in a space including children (recursive)
+     * @param {Array} items - Items array
+     * @returns {number} - Completed count
+     */
+    function countCompletedItems(items) {
+        if (!items || !Array.isArray(items)) return 0;
+        
+        let count = 0;
+        
+        for (const item of items) {
+            if (item.status === 'completed') {
+                count++;
+            }
+            
+            if (item.children && Array.isArray(item.children)) {
+                count += countCompletedItems(item.children);
+            }
+        }
+        
+        return count;
     }
     
     /**
@@ -448,8 +770,8 @@ const defaultSpaces = {
         header.className = 'space-header';
         
         // Calculate stats
-        const totalItems = currentSpace.items ? currentSpace.items.length : 0;
-        const completedItems = currentSpace.items ? currentSpace.items.filter(item => item.status === 'completed').length : 0;
+        const totalItems = countTotalItems(currentSpace.items);
+        const completedItems = countCompletedItems(currentSpace.items);
         const progressPercentage = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
         
         header.innerHTML = `
@@ -493,7 +815,7 @@ const defaultSpaces = {
         sectionTitle.className = 'section-title';
         sectionTitle.innerHTML = `
             Knowledge Items
-            <span class="count">${totalItems}</span>
+            <span class="count">${currentSpace.items ? currentSpace.items.length : 0}</span>
         `;
         
         knowledgeSection.appendChild(sectionTitle);
@@ -591,13 +913,13 @@ const defaultSpaces = {
         const dateUpdated = new Date(item.dateUpdated);
         const formattedDate = window.utils.formatDate(dateUpdated);
         
-        // Count sub-items if any
-        const hasSubItems = item.subItems && item.subItems.length > 0;
-        const subItemsCount = hasSubItems ? item.subItems.length : 0;
+        // Count children if any
+        const hasChildren = item.children && item.children.length > 0;
+        const childrenCount = hasChildren ? item.children.length : 0;
         
-        // Add sub-item counter if has sub-items
-        const subItemsElement = hasSubItems ? 
-            `<span class="sub-items-counter">${subItemsCount} sub-pages</span>` : '';
+        // Add children counter if has children
+        const childrenElement = hasChildren ? 
+            `<span class="children-counter">${childrenCount} sub-pages</span>` : '';
         
         itemElement.innerHTML = `
             <div class="knowledge-status ${statusClass}"></div>
@@ -606,7 +928,7 @@ const defaultSpaces = {
                 <p class="knowledge-subtitle">${item.subtitle || ''}</p>
                 <div class="knowledge-meta">
                     <span>Updated ${formattedDate}</span>
-                    ${subItemsElement}
+                    ${childrenElement}
                 </div>
             </div>
         `;
@@ -622,41 +944,72 @@ const defaultSpaces = {
     /**
      * Open knowledge item
      * @param {string} itemId - Knowledge item ID
-     * @param {string} subItemId - Optional sub-item ID
      */
-    function openKnowledgeItem(itemId, subItemId = null) {
+    function openKnowledgeItem(itemId) {
         if (!currentSpace || !currentSpace.items) return;
         
-        // Find item
-        const item = currentSpace.items.find(i => i.id === itemId);
+        // Find item in the current space
+        const item = findKnowledgeItemInHierarchy(currentSpace.items, itemId);
         if (!item) return;
         
-        // Store current item
+        // Store current item as active
         currentItem = item;
         
-        // If subItemId provided, check if it exists
-        if (subItemId) {
-            // Find the sub-item
-            const subItem = item.subItems?.find(si => si.id === subItemId);
-            if (subItem) {
-                // Show sub-item content page
-                showSubItemContentPage(currentSpace.id, item, subItem);
-                return;
-            }
-        }
-        
-        // Show content page for this knowledge item
-        showKnowledgeContentPage(currentSpace.id, item);
+        // Show knowledge content page with tree navigation
+        showKnowledgeContentWithTree(currentSpace.id, item);
     }
     
     /**
-     * Show knowledge content page
+     * Find a knowledge item in the hierarchy (recursive search)
+     * @param {Array} items - Array of items to search
+     * @param {string} itemId - ID to find
+     * @param {Array} path - Path accumulator for breadcrumb (optional)
+     * @returns {Object|null} - Found item or null
+     */
+    function findKnowledgeItemInHierarchy(items, itemId, path = []) {
+        if (!items || !Array.isArray(items)) return null;
+        
+        for (const item of items) {
+            // Check if this is the item we're looking for
+            if (item.id === itemId) {
+                // If we found it, add the path information to the item
+                item._path = path;
+                return item;
+            }
+            
+            // Check children if any
+            if (item.children && Array.isArray(item.children)) {
+                // Build the path for this level
+                const newPath = [...path, {
+                    id: item.id,
+                    title: item.title
+                }];
+                
+                // Recursively search in children
+                const found = findKnowledgeItemInHierarchy(item.children, itemId, newPath);
+                if (found) return found;
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Show knowledge content with tree navigation
      * @param {string} spaceId - Space ID
      * @param {Object} item - Knowledge item
      */
-    function showKnowledgeContentPage(spaceId, item) {
+    function showKnowledgeContentWithTree(spaceId, item) {
         // Get the content area
         const contentArea = document.querySelector('.content');
+        
+        // Create container with sidebar + content layout
+        const pageContainer = document.createElement('div');
+        pageContainer.className = 'notebook-container';
+        
+        // Create sidebar for tree navigation
+        const sidebar = createKnowledgeTreeSidebar(currentSpace, item);
+        pageContainer.appendChild(sidebar);
         
         // Create content page
         const contentPage = document.createElement('div');
@@ -665,13 +1018,25 @@ const defaultSpaces = {
         // Add breadcrumb navigation
         const breadcrumb = document.createElement('div');
         breadcrumb.className = 'breadcrumb-nav';
-        breadcrumb.innerHTML = `
-            <a href="#" class="to-dashboard">Dashboard</a>
-            <span class="breadcrumb-separator">/</span>
-            <a href="#" class="to-space">${currentSpace.name}</a>
-            <span class="breadcrumb-separator">/</span>
-            <span>${item.title}</span>
-        `;
+        
+        // Build breadcrumb based on path
+        let breadcrumbHTML = `<a href="#" class="to-dashboard">Dashboard</a>`;
+        breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
+        breadcrumbHTML += `<a href="#" class="to-space">${currentSpace.name}</a>`;
+        
+        // Add path segments if they exist
+        if (item._path && item._path.length > 0) {
+            item._path.forEach(segment => {
+                breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
+                breadcrumbHTML += `<a href="#" class="to-path-item" data-id="${segment.id}">${segment.title}</a>`;
+            });
+        }
+        
+        // Add current item
+        breadcrumbHTML += `<span class="breadcrumb-separator">/</span>`;
+        breadcrumbHTML += `<span>${item.title}</span>`;
+        
+        breadcrumb.innerHTML = breadcrumbHTML;
         
         // Add breadcrumb click handlers
         breadcrumb.querySelector('.to-dashboard').addEventListener('click', (e) => {
@@ -682,6 +1047,15 @@ const defaultSpaces = {
         breadcrumb.querySelector('.to-space').addEventListener('click', (e) => {
             e.preventDefault();
             window.studySpaces.openStudySpace(spaceId);
+        });
+        
+        // Add click handlers for path items
+        breadcrumb.querySelectorAll('.to-path-item').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const pathItemId = e.target.dataset.id;
+                openKnowledgeItem(pathItemId);
+            });
         });
         
         contentPage.appendChild(breadcrumb);
@@ -711,15 +1085,25 @@ const defaultSpaces = {
                     <span class="status-indicator ${statusClass}"></span>
                     <span class="status-text">${statusText}</span>
                 </div>
-                <button class="action-btn edit-content-btn">
-                    <i class="icon-edit"></i> Edit
-                </button>
+                <div class="header-buttons">
+                    <button class="action-btn generate-tree-btn">
+                        <i class="icon-tree"></i> Generate Tree
+                    </button>
+                    <button class="action-btn edit-content-btn">
+                        <i class="icon-edit"></i> Edit
+                    </button>
+                </div>
             </div>
         `;
         
         // Add edit button handler
         header.querySelector('.edit-content-btn').addEventListener('click', () => {
             showEditKnowledgeModal(spaceId, item);
+        });
+        
+        // Add generate tree button handler
+        header.querySelector('.generate-tree-btn').addEventListener('click', () => {
+            showGenerateTreeModal(spaceId, item);
         });
         
         contentPage.appendChild(header);
@@ -736,247 +1120,102 @@ const defaultSpaces = {
                 <div class="empty-content">
                     <div class="empty-icon">📝</div>
                     <h3>No content yet</h3>
-                    <p>This knowledge item doesn't have any content yet. Click the Edit button to add content.</p>
+                    <p>This knowledge item doesn't have any content yet. Click the Edit button to add content, or use Generate Tree to create a structure automatically.</p>
                 </div>
             `;
         }
         
         contentPage.appendChild(body);
         
-        // Add sub-items section if there are sub-items
-        if (item.subItems && item.subItems.length > 0) {
-            const subItemsSection = document.createElement('div');
-            subItemsSection.className = 'sub-items-section';
+        // If there are children, display them as sub-pages
+        if (item.children && item.children.length > 0) {
+            const childrenSection = document.createElement('div');
+            childrenSection.className = 'children-section';
             
-            // Add section title
-            const subItemsTitle = document.createElement('h2');
-            subItemsTitle.className = 'sub-items-title';
-            subItemsTitle.textContent = 'Sub-Knowledge Points';
+            const childrenTitle = document.createElement('h2');
+            childrenTitle.className = 'children-title';
+            childrenTitle.textContent = 'Sub-pages';
+            childrenSection.appendChild(childrenTitle);
             
-            subItemsSection.appendChild(subItemsTitle);
+            const childrenList = document.createElement('div');
+            childrenList.className = 'children-list';
             
-            // Add sub-items list
-            const subItemsList = document.createElement('div');
-            subItemsList.className = 'sub-items-list';
-            
-            // Add each sub-item
-            item.subItems.forEach(subItem => {
-                subItemsList.appendChild(createSubKnowledgeItem(item.id, subItem));
+            // Add each child as a clickable item
+            item.children.forEach(child => {
+                const childItem = createChildKnowledgeItem(child);
+                childrenList.appendChild(childItem);
             });
             
-            subItemsSection.appendChild(subItemsList);
+            childrenSection.appendChild(childrenList);
             
-            // Add "Add sub-knowledge" button
-            const addSubButton = document.createElement('div');
-            addSubButton.className = 'add-sub-knowledge';
-            addSubButton.innerHTML = `
-                <i class="icon-plus"></i> Add New Sub-Knowledge Point
-            `;
+            // Add "Add new sub-page" button
+            const addChildButton = document.createElement('div');
+            addChildButton.className = 'add-child-button';
+            addChildButton.innerHTML = `<i class="icon-plus"></i> Add New Sub-page`;
             
-            addSubButton.addEventListener('click', () => {
-                showAddSubKnowledgeModal(spaceId, item.id);
+            addChildButton.addEventListener('click', () => {
+                showAddChildModal(spaceId, item);
             });
             
-            subItemsSection.appendChild(addSubButton);
+            childrenSection.appendChild(addChildButton);
             
-            contentPage.appendChild(subItemsSection);
+            contentPage.appendChild(childrenSection);
         } else {
-            // If no sub-items, show add sub-knowledge button
-            const addSubSection = document.createElement('div');
-            addSubSection.className = 'add-sub-section';
+            // If no children, show add sub-page button
+            const addChildSection = document.createElement('div');
+            addChildSection.className = 'add-child-section';
             
-            const addSubTitle = document.createElement('h2');
-            addSubTitle.className = 'sub-items-title';
-            addSubTitle.textContent = 'Sub-Knowledge Points';
+            const childrenTitle = document.createElement('h2');
+            childrenTitle.className = 'children-title';
+            childrenTitle.textContent = 'Sub-pages';
+            addChildSection.appendChild(childrenTitle);
             
-            addSubSection.appendChild(addSubTitle);
+            const addChildMessage = document.createElement('p');
+            addChildMessage.className = 'children-message';
+            addChildMessage.textContent = 'No sub-pages yet. Add one below or use Generate Tree to create a structure automatically.';
             
-            const addSubMessage = document.createElement('p');
-            addSubMessage.className = 'sub-items-message';
-            addSubMessage.textContent = 'No sub-knowledge points yet. Add one to organize your learning further.';
+            addChildSection.appendChild(addChildMessage);
             
-            addSubSection.appendChild(addSubMessage);
+            const addChildButtons = document.createElement('div');
+            addChildButtons.className = 'add-child-buttons';
             
-            const addSubButton = document.createElement('button');
-            addSubButton.className = 'add-sub-btn';
-            addSubButton.innerHTML = '<i class="icon-plus"></i> Add Sub-Knowledge Point';
+            const addChildButton = document.createElement('button');
+            addChildButton.className = 'add-child-btn';
+            addChildButton.innerHTML = '<i class="icon-plus"></i> Add Sub-page';
             
-            addSubButton.addEventListener('click', () => {
-                showAddSubKnowledgeModal(spaceId, item.id);
+            addChildButton.addEventListener('click', () => {
+                showAddChildModal(spaceId, item);
             });
             
-            addSubSection.appendChild(addSubButton);
+            const generateTreeButton = document.createElement('button');
+            generateTreeButton.className = 'generate-tree-btn';
+            generateTreeButton.innerHTML = '<i class="icon-tree"></i> Generate Tree Structure';
             
-            contentPage.appendChild(addSubSection);
+            generateTreeButton.addEventListener('click', () => {
+                showGenerateTreeModal(spaceId, item);
+            });
+            
+            addChildButtons.appendChild(addChildButton);
+            addChildButtons.appendChild(generateTreeButton);
+            
+            addChildSection.appendChild(addChildButtons);
+            
+            contentPage.appendChild(addChildSection);
         }
         
-        // Replace current content with content page
+        // Add content page to container
+        pageContainer.appendChild(contentPage);
+        
+        // Replace current content with the new layout
         contentArea.innerHTML = '';
-        contentArea.appendChild(contentPage);
+        contentArea.appendChild(pageContainer);
         
         // Update document title
         document.title = `${item.title} - ${currentSpace.name} - SelfLearn`;
         document.getElementById('document-title').textContent = item.title;
         
-        // Update breadcrumb
+        // Update breadcrumb in header
         updateBreadcrumb(item.title, currentSpace.name);
-    }
-    
-    /**
-     * Show sub-item content page
-     * @param {string} spaceId - Space ID
-     * @param {Object} parentItem - Parent knowledge item
-     * @param {Object} subItem - Sub-knowledge item
-     */
-    function showSubItemContentPage(spaceId, parentItem, subItem) {
-        // Get the content area
-        const contentArea = document.querySelector('.content');
-        
-        // Create content page
-        const contentPage = document.createElement('div');
-        contentPage.className = 'knowledge-content-page';
-        
-        // Add breadcrumb navigation
-        const breadcrumb = document.createElement('div');
-        breadcrumb.className = 'breadcrumb-nav';
-        breadcrumb.innerHTML = `
-            <a href="#" class="to-dashboard">Dashboard</a>
-            <span class="breadcrumb-separator">/</span>
-            <a href="#" class="to-space">${currentSpace.name}</a>
-            <span class="breadcrumb-separator">/</span>
-            <a href="#" class="to-parent">${parentItem.title}</a>
-            <span class="breadcrumb-separator">/</span>
-            <span>${subItem.title}</span>
-        `;
-        
-        // Add breadcrumb click handlers
-        breadcrumb.querySelector('.to-dashboard').addEventListener('click', (e) => {
-            e.preventDefault();
-            window.studySpaces.showWelcomeDashboard();
-        });
-        
-        breadcrumb.querySelector('.to-space').addEventListener('click', (e) => {
-            e.preventDefault();
-            window.studySpaces.openStudySpace(spaceId);
-        });
-        
-        breadcrumb.querySelector('.to-parent').addEventListener('click', (e) => {
-            e.preventDefault();
-            openKnowledgeItem(parentItem.id);
-        });
-        
-        contentPage.appendChild(breadcrumb);
-        
-        // Add content header
-        const header = document.createElement('div');
-        header.className = 'content-header';
-        
-        // Get status class
-        let statusClass = 'status-not-started';
-        let statusText = 'Not Started';
-        if (subItem.status === 'completed') {
-            statusClass = 'status-completed';
-            statusText = 'Completed';
-        } else if (subItem.status === 'in-progress') {
-            statusClass = 'status-in-progress';
-            statusText = 'In Progress';
-        }
-        
-        header.innerHTML = `
-            <div class="content-title">
-                <h1>${subItem.title}</h1>
-                <div class="content-subtitle">${subItem.subtitle || ''}</div>
-            </div>
-            <div class="content-actions">
-                <div class="content-status">
-                    <span class="status-indicator ${statusClass}"></span>
-                    <span class="status-text">${statusText}</span>
-                </div>
-                <button class="action-btn edit-content-btn">
-                    <i class="icon-edit"></i> Edit
-                </button>
-            </div>
-        `;
-        
-        // Add edit button handler
-        header.querySelector('.edit-content-btn').addEventListener('click', () => {
-            showEditSubKnowledgeModal(spaceId, parentItem.id, subItem);
-        });
-        
-        contentPage.appendChild(header);
-        
-        // Add content body
-        const body = document.createElement('div');
-        body.className = 'content-body';
-        
-        // Check if content exists, if not show placeholder
-        if (subItem.content) {
-            body.innerHTML = subItem.content;
-        } else {
-            body.innerHTML = `
-                <div class="empty-content">
-                    <div class="empty-icon">📝</div>
-                    <h3>No content yet</h3>
-                    <p>This sub-knowledge item doesn't have any content yet. Click the Edit button to add content.</p>
-                </div>
-            `;
-        }
-        
-        contentPage.appendChild(body);
-        
-        // Replace current content with content page
-        contentArea.innerHTML = '';
-        contentArea.appendChild(contentPage);
-        
-        // Update document title
-        document.title = `${subItem.title} - ${currentSpace.name} - SelfLearn`;
-        document.getElementById('document-title').textContent = subItem.title;
-        
-        // Update breadcrumb
-        updateBreadcrumb(subItem.title, currentSpace.name, parentItem.title);
-    }
-    
-    /**
-     * Create sub-knowledge item element
-     * @param {string} parentId - Parent item ID
-     * @param {Object} subItem - Sub-knowledge item
-     * @returns {HTMLElement} - Item element
-     */
-    function createSubKnowledgeItem(parentId, subItem) {
-        const itemElement = document.createElement('div');
-        itemElement.className = 'sub-knowledge-item';
-        itemElement.dataset.itemId = subItem.id;
-        itemElement.dataset.parentId = parentId;
-        
-        // Set status class
-        let statusClass = 'status-not-started';
-        if (subItem.status === 'completed') {
-            statusClass = 'status-completed';
-        } else if (subItem.status === 'in-progress') {
-            statusClass = 'status-in-progress';
-        }
-        
-        // Format date
-        const dateUpdated = new Date(subItem.dateUpdated);
-        const formattedDate = window.utils.formatDate(dateUpdated);
-        
-        itemElement.innerHTML = `
-            <div class="knowledge-status ${statusClass}"></div>
-            <div class="knowledge-content">
-                <h3 class="knowledge-title">${subItem.title}</h3>
-                <p class="knowledge-subtitle">${subItem.subtitle || ''}</p>
-                <div class="knowledge-meta">
-                    <span>Updated ${formattedDate}</span>
-                </div>
-            </div>
-        `;
-        
-        // Add click event to open sub-knowledge item
-        itemElement.addEventListener('click', () => {
-            openKnowledgeItem(parentId, subItem.id);
-        });
-        
-        return itemElement;
     }
     
     /**
@@ -1070,7 +1309,7 @@ const defaultSpaces = {
                 status: status,
                 dateCreated: new Date().toISOString(),
                 dateUpdated: new Date().toISOString(),
-                subItems: []
+                children: [] // Add children array
             };
             
             // Add to space and save to storage
@@ -1089,151 +1328,7 @@ const defaultSpaces = {
                 modal.remove();
                 
                 // Navigate to the new item's content page
-                showKnowledgeContentPage(spaceId, newItem);
-            }
-        });
-        
-        // Close when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
-    }
-    
-    /**
-     * Show modal to add new sub-knowledge item
-     * @param {string} spaceId - Space ID
-     * @param {string} parentId - Parent item ID
-     */
-    function showAddSubKnowledgeModal(spaceId, parentId) {
-        // Find parent item
-        const spaces = window.storage.getStudySpaces();
-        if (!spaces || !spaces[spaceId]) return;
-        
-        const parentItem = spaces[spaceId].items.find(item => item.id === parentId);
-        if (!parentItem) return;
-        
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header space-modal-header">
-                    <h3>Add Sub-Knowledge Point</h3>
-                    <button class="modal-close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="item-parent">Parent</label>
-                        <input type="text" id="item-parent" value="${parentItem.title}" disabled>
-                    </div>
-                    <div class="form-group">
-                        <label for="item-title">Title</label>
-                        <input type="text" id="item-title" placeholder="e.g., Advanced Concepts">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-subtitle">Subtitle (Optional)</label>
-                        <input type="text" id="item-subtitle" placeholder="e.g., Deep dive into complex topics">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-content">Content (Optional)</label>
-                        <textarea id="item-content" rows="8" placeholder="Add your notes, code snippets, or other content here..."></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <div class="knowledge-status-selector">
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="not-started" checked>
-                                <span class="status-indicator status-not-started"></span>
-                                Not Started
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="in-progress">
-                                <span class="status-indicator status-in-progress"></span>
-                                In Progress
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="completed">
-                                <span class="status-indicator status-completed"></span>
-                                Completed
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button id="add-subitem-btn" class="btn btn-primary">Add Sub-Item</button>
-                        <button id="cancel-item-btn" class="btn">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Add event listeners
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#cancel-item-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#add-subitem-btn').addEventListener('click', () => {
-            // Get form values
-            const title = document.getElementById('item-title').value.trim();
-            const subtitle = document.getElementById('item-subtitle').value.trim();
-            const content = document.getElementById('item-content').value;
-            const status = document.querySelector('input[name="item-status"]:checked').value;
-            
-            // Validate
-            if (!title) {
-                alert('Please enter a title for your sub-knowledge item');
-                return;
-            }
-            
-            // Create item ID from title (slug)
-            const id = title.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36);
-            
-            // Create sub-item object
-            const newSubItem = {
-                id: id,
-                title: title,
-                subtitle: subtitle || '',
-                content: content || '',
-                status: status,
-                dateCreated: new Date().toISOString(),
-                dateUpdated: new Date().toISOString()
-            };
-            
-            // Add to parent item and save to storage
-            const spaces = window.storage.getStudySpaces();
-            if (spaces && spaces[spaceId]) {
-                const parentIndex = spaces[spaceId].items.findIndex(item => item.id === parentId);
-                if (parentIndex !== -1) {
-                    // Initialize subItems array if it doesn't exist
-                    if (!spaces[spaceId].items[parentIndex].subItems) {
-                        spaces[spaceId].items[parentIndex].subItems = [];
-                    }
-                    
-                    // Add new sub-item
-                    spaces[spaceId].items[parentIndex].subItems.push(newSubItem);
-                    
-                    // Update parent's dateUpdated
-                    spaces[spaceId].items[parentIndex].dateUpdated = new Date().toISOString();
-                    
-                    // Save to storage
-                    window.storage.setStudySpaces(spaces);
-                    
-                    // Update current space
-                    currentSpace = spaces[spaceId];
-                    
-                    // Close modal
-                    modal.remove();
-                    
-                    // Navigate to the new sub-item's content page
-                    showSubItemContentPage(spaceId, spaces[spaceId].items[parentIndex], newSubItem);
-                }
+                window.knowledgeTree.openKnowledgeItem(id);
             }
         });
         
@@ -1330,14 +1425,15 @@ const defaultSpaces = {
             const spaces = window.storage.getStudySpaces();
             if (spaces && spaces[spaceId]) {
                 // Find item index
-                const itemIndex = spaces[spaceId].items.findIndex(i => i.id === item.id);
-                if (itemIndex !== -1) {
-                    // Update properties
-                    spaces[spaceId].items[itemIndex].title = title;
-                    spaces[spaceId].items[itemIndex].subtitle = subtitle;
-                    spaces[spaceId].items[itemIndex].content = content;
-                    spaces[spaceId].items[itemIndex].status = status;
-                    spaces[spaceId].items[itemIndex].dateUpdated = new Date().toISOString();
+                const itemIndex = findItemIndexInHierarchy(spaces[spaceId].items, item.id);
+                if (itemIndex !== null) {
+                    // Update properties while preserving the children array
+                    const [parentArray, index] = itemIndex;
+                    parentArray[index].title = title;
+                    parentArray[index].subtitle = subtitle;
+                    parentArray[index].content = content;
+                    parentArray[index].status = status;
+                    parentArray[index].dateUpdated = new Date().toISOString();
                     
                     // Save to storage
                     window.storage.setStudySpaces(spaces);
@@ -1349,30 +1445,36 @@ const defaultSpaces = {
                     modal.remove();
                     
                     // Refresh content page with updated content
-                    showKnowledgeContentPage(spaceId, spaces[spaceId].items[itemIndex]);
+                    window.knowledgeTree.openKnowledgeItem(item.id);
                 }
             }
         });
         
         modal.querySelector('#delete-item-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete this knowledge item? All sub-items will also be deleted.')) {
+            if (confirm('Are you sure you want to delete this knowledge item? All children items will also be deleted.')) {
                 // Remove item from space
                 const spaces = window.storage.getStudySpaces();
                 if (spaces && spaces[spaceId]) {
-                    // Filter out the item
-                    spaces[spaceId].items = spaces[spaceId].items.filter(i => i.id !== item.id);
+                    // Find item in hierarchy
+                    const itemIndex = findItemIndexInHierarchy(spaces[spaceId].items, item.id);
                     
-                    // Save to storage
-                    window.storage.setStudySpaces(spaces);
-                    
-                    // Update current space
-                    currentSpace = spaces[spaceId];
-                    
-                    // Close modal
-                    modal.remove();
-                    
-                    // Go back to space view
-                    window.studySpaces.openStudySpace(spaceId);
+                    if (itemIndex !== null) {
+                        // Remove item from its parent array
+                        const [parentArray, index] = itemIndex;
+                        parentArray.splice(index, 1);
+                        
+                        // Save to storage
+                        window.storage.setStudySpaces(spaces);
+                        
+                        // Update current space
+                        currentSpace = spaces[spaceId];
+                        
+                        // Close modal
+                        modal.remove();
+                        
+                        // Go back to space view
+                        window.studySpaces.openStudySpace(spaceId);
+                    }
                 }
             }
         });
@@ -1386,158 +1488,30 @@ const defaultSpaces = {
     }
     
     /**
-     * Show modal to edit sub-knowledge item
-     * @param {string} spaceId - Space ID
-     * @param {string} parentId - Parent item ID
-     * @param {Object} subItem - Sub-knowledge item to edit
+     * Find item index in hierarchy (recursive search)
+     * @param {Array} items - Array of items to search
+     * @param {string} itemId - ID to find
+     * @returns {Array|null} - Array containing [parentArray, index] or null if not found
      */
-    function showEditSubKnowledgeModal(spaceId, parentId, subItem) {
-        // Create modal
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header space-modal-header">
-                    <h3>Edit Sub-Knowledge Item</h3>
-                    <button class="modal-close-btn">&times;</button>
-                </div>
-                <div class="modal-body">
-                    <div class="form-group">
-                        <label for="item-title">Title</label>
-                        <input type="text" id="item-title" value="${subItem.title}">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-subtitle">Subtitle (Optional)</label>
-                        <input type="text" id="item-subtitle" value="${subItem.subtitle || ''}">
-                    </div>
-                    <div class="form-group">
-                        <label for="item-content">Content</label>
-                        <textarea id="item-content" rows="10" placeholder="Add your notes, code snippets, or other content here...">${subItem.content || ''}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Status</label>
-                        <div class="knowledge-status-selector">
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="not-started" ${subItem.status === 'not-started' ? 'checked' : ''}>
-                                <span class="status-indicator status-not-started"></span>
-                                Not Started
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="in-progress" ${subItem.status === 'in-progress' ? 'checked' : ''}>
-                                <span class="status-indicator status-in-progress"></span>
-                                In Progress
-                            </label>
-                            <label class="status-option">
-                                <input type="radio" name="item-status" value="completed" ${subItem.status === 'completed' ? 'checked' : ''}>
-                                <span class="status-indicator status-completed"></span>
-                                Completed
-                            </label>
-                        </div>
-                    </div>
-                    <div class="form-actions">
-                        <button id="update-item-btn" class="btn btn-primary">Update</button>
-                        <button id="delete-item-btn" class="btn btn-danger">Delete</button>
-                        <button id="cancel-item-btn" class="btn">Cancel</button>
-                    </div>
-                </div>
-            </div>
-        `;
+    function findItemIndexInHierarchy(items, itemId) {
+        if (!items || !Array.isArray(items)) return null;
         
-        document.body.appendChild(modal);
-        
-        // Add event listeners
-        modal.querySelector('.modal-close-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#cancel-item-btn').addEventListener('click', () => {
-            modal.remove();
-        });
-        
-        modal.querySelector('#update-item-btn').addEventListener('click', () => {
-            // Get form values
-            const title = document.getElementById('item-title').value.trim();
-            const subtitle = document.getElementById('item-subtitle').value.trim();
-            const content = document.getElementById('item-content').value;
-            const status = document.querySelector('input[name="item-status"]:checked').value;
-            
-            // Validate
-            if (!title) {
-                alert('Please enter a title for your sub-knowledge item');
-                return;
+        // Try to find in the current level
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].id === itemId) {
+                return [items, i];
             }
             
-            // Update sub-item in space
-            const spaces = window.storage.getStudySpaces();
-            if (spaces && spaces[spaceId]) {
-                // Find parent item
-                const parentIndex = spaces[spaceId].items.findIndex(i => i.id === parentId);
-                if (parentIndex !== -1) {
-                    // Find sub-item index
-                    const subItemIndex = spaces[spaceId].items[parentIndex].subItems.findIndex(si => si.id === subItem.id);
-                    if (subItemIndex !== -1) {
-                        // Update properties
-                        spaces[spaceId].items[parentIndex].subItems[subItemIndex].title = title;
-                        spaces[spaceId].items[parentIndex].subItems[subItemIndex].subtitle = subtitle;
-                        spaces[spaceId].items[parentIndex].subItems[subItemIndex].content = content;
-                        spaces[spaceId].items[parentIndex].subItems[subItemIndex].status = status;
-                        spaces[spaceId].items[parentIndex].subItems[subItemIndex].dateUpdated = new Date().toISOString();
-                        
-                        // Update parent's dateUpdated
-                        spaces[spaceId].items[parentIndex].dateUpdated = new Date().toISOString();
-                        
-                        // Save to storage
-                        window.storage.setStudySpaces(spaces);
-                        
-                        // Update current space
-                        currentSpace = spaces[spaceId];
-                        
-                        // Close modal
-                        modal.remove();
-                        
-                        // Refresh content page with updated content
-                        showSubItemContentPage(spaceId, spaces[spaceId].items[parentIndex], spaces[spaceId].items[parentIndex].subItems[subItemIndex]);
-                    }
+            // Check in children if any
+            if (items[i].children && Array.isArray(items[i].children)) {
+                const found = findItemIndexInHierarchy(items[i].children, itemId);
+                if (found) {
+                    return found;
                 }
             }
-        });
+        }
         
-        modal.querySelector('#delete-item-btn').addEventListener('click', () => {
-            if (confirm('Are you sure you want to delete this sub-knowledge item?')) {
-                // Remove sub-item from parent
-                const spaces = window.storage.getStudySpaces();
-                if (spaces && spaces[spaceId]) {
-                    // Find parent item
-                    const parentIndex = spaces[spaceId].items.findIndex(i => i.id === parentId);
-                    if (parentIndex !== -1) {
-                        // Filter out the sub-item
-                        spaces[spaceId].items[parentIndex].subItems = spaces[spaceId].items[parentIndex].subItems.filter(si => si.id !== subItem.id);
-                        
-                        // Update parent's dateUpdated
-                        spaces[spaceId].items[parentIndex].dateUpdated = new Date().toISOString();
-                        
-                        // Save to storage
-                        window.storage.setStudySpaces(spaces);
-                        
-                        // Update current space
-                        currentSpace = spaces[spaceId];
-                        
-                        // Close modal
-                        modal.remove();
-                        
-                        // Go back to parent item view
-                        showKnowledgeContentPage(spaceId, spaces[spaceId].items[parentIndex]);
-                    }
-                }
-            }
-        });
-        
-        // Close when clicking outside
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.remove();
-            }
-        });
+        return null;
     }
     
     /**

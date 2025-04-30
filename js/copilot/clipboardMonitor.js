@@ -21,9 +21,12 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
         // Set up clipboard monitor toggle
         setupToggle();
         
+        // Set up paste event monitoring
+        setupPasteListener();
+        
         // Load last monitoring state from settings
         const settings = WebNotebook.Utils.Storage.loadSettings();
-        if (settings.clipboardMonitorEnabled) {
+        if (settings.copilot && settings.copilot.autostart) {
             startMonitoring();
             document.getElementById('clipboard-monitor-toggle').checked = true;
         }
@@ -45,8 +48,27 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
             
             // Save preference to settings
             const settings = WebNotebook.Utils.Storage.loadSettings();
-            settings.clipboardMonitorEnabled = this.checked;
+            settings.copilot = settings.copilot || {};
+            settings.copilot.isMonitoring = this.checked;
             WebNotebook.Utils.Storage.saveSettings(settings);
+        });
+    }
+    
+    /**
+     * Set up global paste event listener
+     */
+    function setupPasteListener() {
+        // Listen for paste events globally
+        document.addEventListener('paste', function(e) {
+            if (!isMonitoring) return;
+            
+            // Get the pasted text
+            const text = e.clipboardData.getData('text');
+            if (!text || text === lastCapturedText) return;
+            
+            // Process the new text
+            processNewClipboardContent(text);
+            lastCapturedText = text;
         });
     }
     
@@ -61,7 +83,10 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
         // Show notification
         showNotification('Clipboard monitoring started', 'The AI Copilot will capture any text you copy.');
         
-        // Start polling the clipboard
+        // Try to use Clipboard API if available
+        tryUsingClipboardAPI();
+        
+        // Start polling the clipboard as fallback
         monitorInterval = setInterval(checkClipboard, POLLING_INTERVAL);
     }
     
@@ -84,37 +109,51 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
     }
     
     /**
-     * Check the clipboard for new text
+     * Try to use the Clipboard API if available and permitted
      */
-    function checkClipboard() {
-        // We need to use the browser's clipboard API
-        // This requires user permission and needs to be called from a user action
-        // For demonstration purposes, we'll use a simulated approach
-        
-        // In a real implementation, this would use navigator.clipboard.readText()
-        // but that requires user permission and a secure context (HTTPS)
-        simulateClipboardCheck();
+    function tryUsingClipboardAPI() {
+        if (navigator.clipboard && navigator.clipboard.readText) {
+            // Request permission by trying to read clipboard
+            navigator.clipboard.readText()
+                .then(text => {
+                    console.log('Clipboard API access granted');
+                    // If successful, we can use the API for monitoring
+                    // Replace the interval with Clipboard API based monitoring
+                    if (monitorInterval) {
+                        clearInterval(monitorInterval);
+                    }
+                    
+                    // Set up a new interval that uses the Clipboard API
+                    monitorInterval = setInterval(() => {
+                        navigator.clipboard.readText()
+                            .then(newText => {
+                                if (newText && newText !== lastCapturedText) {
+                                    processNewClipboardContent(newText);
+                                    lastCapturedText = newText;
+                                }
+                            })
+                            .catch(err => {
+                                console.error('Error reading clipboard:', err);
+                            });
+                    }, POLLING_INTERVAL);
+                })
+                .catch(err => {
+                    console.log('Clipboard API access denied, using fallback:', err);
+                    // Continue with fallback approach
+                });
+        }
     }
     
     /**
-     * Simulate checking the clipboard
-     * In a real implementation, this would be replaced with actual clipboard access
+     * Check the clipboard for new text
      */
-    function simulateClipboardCheck() {
-        // This is a placeholder for the actual clipboard reading logic
-        // For testing, we'll provide a way to manually "paste" text into the copilot
+    function checkClipboard() {
+        // This is a fallback for browsers that don't support Clipboard API
+        // We rely on the paste event handling for most cases
+        // This is just a periodic check in case we missed a copy event
         
-        document.addEventListener('paste', function(e) {
-            if (!isMonitoring) return;
-            
-            // Get the pasted text
-            const text = e.clipboardData.getData('text');
-            if (!text || text === lastCapturedText) return;
-            
-            // Process the new text
-            processNewClipboardContent(text);
-            lastCapturedText = text;
-        });
+        // For now, we don't do anything here as it's not possible to 
+        // programmatically read the clipboard without user action in most browsers
     }
     
     /**
@@ -174,10 +213,7 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
      * @param {string} text - The text to display
      */
     function updateCapturedContent(text) {
-        const capturedTextElement = document.getElementById('captured-text');
-        if (capturedTextElement) {
-            capturedTextElement.textContent = text;
-        }
+        WebNotebook.Copilot.updateCapturedContent(text);
     }
     
     /**
@@ -276,10 +312,7 @@ WebNotebook.Copilot.ClipboardMonitor = (function() {
      * Show the copilot window
      */
     function showCopilot() {
-        const copilot = document.getElementById('copilot-popup');
-        if (copilot) {
-            copilot.style.display = 'flex';
-        }
+        WebNotebook.Copilot.showCopilot();
     }
     
     /**

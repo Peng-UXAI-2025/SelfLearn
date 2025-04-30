@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="styles/interface.css" />
     <link rel="stylesheet" href="styles/knowledge-tree.css" />
     <link rel="stylesheet" href="styles/copilot.css" />
+    <link rel="stylesheet" href="styles/ai-window.css" />
     <link rel="stylesheet" href="styles/themes.css" />
   </head>
   <body>
@@ -464,12 +465,17 @@ Example:
       </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- Initialize application namespace -->
+    <script>
+      // Initialize global namespace if it doesn't exist yet
+      window.WebNotebook = window.WebNotebook || {};
+    </script>
+
     <!-- Scripts: Load in dependency order -->
     <!-- Utils first -->
     <script src="js/utils/storage.js"></script>
     <script src="js/utils/search.js"></script>
-    <script src="js/utils.js"></script>
+    <script src="js/utils/utils.js"></script>
 
     <!-- Interface components -->
     <script src="js/interface/viewModes.js"></script>
